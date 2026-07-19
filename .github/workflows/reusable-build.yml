@@ -1,0 +1,41 @@
+name: reusable build
+
+on:
+  workflow_call:
+    inputs:
+      mod:
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: krdlab/setup-haxe@v2
+        with:
+          haxe-version: 4.3.3
+
+      # farever-gamelib is a private repo (generated from proprietary game bytecode, can't be shipped in this repo)
+      # installed as a haxelib over SSH using a read-only deploy key.
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.FAREVER_GAMELIB_READONLY_DEPLOY_KEY }}
+
+      - name: Install haxelibs
+        run: |
+          haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
+          haxelib git farever-gamelib git@github.com:laymain/farever-gamelib.git main
+
+      - run: npm ci
+      - run: npm run build -- ${{ inputs.mod }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.mod }}
+          path: ${{ inputs.mod }}/dist/${{ inputs.mod }}.zip

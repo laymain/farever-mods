@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ['*/*']
+
+permissions:
+  contents: write
+
+jobs:
+  parse:
+    runs-on: ubuntu-latest
+    outputs:
+      mod: ${{ steps.parse.outputs.mod }}
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - id: parse
+        run: |
+          echo "mod=${GITHUB_REF_NAME%%/*}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#*/}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: parse
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      mod: ${{ needs.parse.outputs.mod }}
+    secrets: inherit
+
+  release:
+    needs: [parse, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.parse.outputs.mod }}
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.parse.outputs.mod }} ${{ needs.parse.outputs.version }}
+          files: dist/${{ needs.parse.outputs.mod }}.zip

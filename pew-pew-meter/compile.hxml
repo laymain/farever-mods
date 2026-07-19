@@ -1,0 +1,8 @@
+-lib farever-gamelib
+-lib hlx-runtime
+-cp res
+-cp src
+-cp macro
+-main pew.PewPewMeterMod
+-dce full
+-hl build/pew-pew-meter/pew-pew-meter.hl

@@ -1,0 +1,6 @@
+<panel title="PewPewMeter" width="400" maxWidth="800" x="16" y="16" scale="0.8" background="0x1a1a1a" alpha="0.75" padding="6" verticalSpacing="4" draggable="true" resizable="true" collapsible="true" collapsed="true" onChange="onStateMutated">
+    <titlebar>
+        <button id="resetButton" text="Reset" onClick="onResetClicked"/>
+    </titlebar>
+    <content id="rowsFlow" verticalSpacing="2" minHeight="45" maxContentHeight="2000" overflow="scroll"/>
+</panel>

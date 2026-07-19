@@ -1,0 +1,5 @@
+<row layout="horizontal" horizontalSpacing="6" verticalAlign="middle">
+    <bar id="bar" color="0x4da6ff" height="14"/>
+    <text id="nameText" color="0xFFFFFF"/>
+    <text id="statsText" color="0xCCCCCC"/>
+</row>
