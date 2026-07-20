@@ -12,13 +12,15 @@ class DpsTracker {
 
 	static inline var ROSTER_REFRESH_INTERVAL = 2.0;
 	static inline var REPORT_INTERVAL = 1.0;
-	static inline var IDLE_TIMEOUT = 10.0;
+	static inline var IDLE_TIMEOUT = 60.0;
+	static inline var LEAVE_COMBAT_GRACE = 1.0;
 
 	var rosterTracker = new RosterTracker();
 	var encounter = new Encounter();
 	var reporter:DpsReporter;
 	var nextRosterRefresh = 0.0;
 	var nextReport = 0.0;
+	var pendingCloseAt = -1.0;
 
 	var panel:pew.panel.MeterPanel;
 
@@ -35,10 +37,15 @@ class DpsTracker {
 		}
 
 		if (encounter.active) {
-			if (encounter.isStale(now, IDLE_TIMEOUT)) {
+			if (pendingCloseAt >= 0 && now >= pendingCloseAt) {
+				reporter.report(encounter, rosterTracker.all(), true);
+				encounter.end();
+				pendingCloseAt = -1.0;
+			} else if (encounter.isStale(now, IDLE_TIMEOUT)) {
 				reporter.report(encounter, rosterTracker.all(), true);
 				rosterTracker.clearInCombat();
 				encounter.end();
+				pendingCloseAt = -1.0;
 			} else if (now >= nextReport) {
 				reporter.report(encounter, rosterTracker.all(), false);
 				nextReport = now + REPORT_INTERVAL;
@@ -65,6 +72,7 @@ class DpsTracker {
 			return;
 		}
 		combatant.inCombat = true;
+		pendingCloseAt = -1.0;
 
 		if (!encounter.active) {
 			startEncounter();
@@ -81,8 +89,7 @@ class DpsTracker {
 		if (!encounter.active || rosterTracker.anyInCombat()) {
 			return;
 		}
-		reporter.report(encounter, rosterTracker.all(), true);
-		encounter.end();
+		pendingCloseAt = Time.get_appTime() + LEAVE_COMBAT_GRACE;
 	}
 
 	public function onInflictDamage(unit:Unit, dmg:DamageResult):Void {
@@ -95,10 +102,14 @@ class DpsTracker {
 			return;
 		}
 		combatant.inCombat = true;
-		if (encounter.active) {
-			encounter.recordHit();
-			combatant.stats.record(amount, dmg.get_critical());
+		if (pendingCloseAt >= 0) {
+			pendingCloseAt = Time.get_appTime() + LEAVE_COMBAT_GRACE;
 		}
+		if (!encounter.active) {
+			startEncounter();
+		}
+		encounter.recordHit();
+		combatant.stats.record(amount, dmg.get_critical());
 	}
 
 	function startEncounter():Void {
@@ -110,5 +121,6 @@ class DpsTracker {
 	public function manualReset():Void {
 		encounter.reset();
 		rosterTracker.resetStats();
+		pendingCloseAt = -1.0;
 	}
 }

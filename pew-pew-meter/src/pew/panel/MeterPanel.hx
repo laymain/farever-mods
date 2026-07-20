@@ -19,6 +19,12 @@ class MeterPanel {
 
 	function onResetClicked(e:hxd.Event):Void {
 		pew.tracking.DpsTracker.instance.manualReset();
+		clear();
+	}
+
+	public function clear():Void {
+		for (row in rows) row.hide();
+		rowsFlow.needReflow = true;
 	}
 
 	function onStateMutated():Void {
