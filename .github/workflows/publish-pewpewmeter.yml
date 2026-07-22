@@ -1,0 +1,48 @@
+name: Publish pew-pew-meter
+
+# Called as the last job of release.yml (scoped to pew-pew-meter tags only) - not independently triggered.
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+    secrets:
+      NEXUS_CONFIG:
+        required: true
+
+jobs:
+  publish-nexus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pew-pew-meter
+          path: dist
+
+      # Secret NEXUS_CONFIG is a single JSON blob:
+      # { "nexus_api_key": "...", "pew-pew-meter": { "nexus_domain": "...", "nexus_mod_id": 0, "nexus_file_group_id": "..." } }
+      - name: Read Nexus config
+        id: nexus
+        env:
+          NEXUS_CONFIG: ${{ secrets.NEXUS_CONFIG }}
+        run: |
+          API_KEY=$(jq -r '.nexus_api_key' <<< "$NEXUS_CONFIG")
+          echo "::add-mask::$API_KEY"
+          echo "api_key=$API_KEY" >> "$GITHUB_OUTPUT"
+          echo "domain=$(jq -r '."pew-pew-meter".nexus_domain' <<< "$NEXUS_CONFIG")" >> "$GITHUB_OUTPUT"
+          echo "mod_id=$(jq -r '."pew-pew-meter".nexus_mod_id' <<< "$NEXUS_CONFIG")" >> "$GITHUB_OUTPUT"
+          echo "file_id=$(jq -r '."pew-pew-meter".nexus_file_group_id' <<< "$NEXUS_CONFIG")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Nexus Mods
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.9
+        with:
+          api_key: ${{ steps.nexus.outputs.api_key }}
+          file_id: ${{ steps.nexus.outputs.file_id }}
+          filename: dist/pew-pew-meter.zip
+          version: ${{ inputs.version }}
+          display_name: pew-pew-meter ${{ inputs.version }}
+          description: https://www.nexusmods.com/${{ steps.nexus.outputs.domain }}/mods/${{ steps.nexus.outputs.mod_id }}
+          category: main
+          archive_existing_version: true
+          update_mod_version: true

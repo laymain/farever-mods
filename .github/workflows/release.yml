@@ -39,3 +39,12 @@ jobs:
         with:
           name: ${{ needs.parse.outputs.mod }} ${{ needs.parse.outputs.version }}
           files: dist/${{ needs.parse.outputs.mod }}.zip
+
+  publish-nexus:
+    if: needs.parse.outputs.mod == 'pew-pew-meter'
+    needs: [parse, release]
+    uses: ./.github/workflows/publish-pewpewmeter.yml
+    with:
+      version: ${{ needs.parse.outputs.version }}
+    secrets:
+      NEXUS_CONFIG: ${{ secrets.NEXUS_CONFIG }}
