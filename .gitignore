@@ -1,3 +1,4 @@
+.tools/user-config.json
 node_modules/
 build/
 dist/

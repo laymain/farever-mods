@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import archiver from 'archiver'
-import { buildDir, distDir } from './paths.mts'
+import { stageDir, distDir } from './paths.mts'
 
 export function runZip(modName: string): Promise<void> {
   const outFile = path.join(distDir(modName), `${modName}.zip`)
@@ -19,9 +19,11 @@ export function runZip(modName: string): Promise<void> {
     archive.on('error', reject)
 
     archive.pipe(output)
-    // false = zip entries keep whatever path they have under build/ - that's
-    // already build/<modName>/<modName>.hl, so no extra nesting needed.
-    archive.directory(buildDir(modName), false)
+    // Nests the staged tree under an `hlx/` prefix inside the archive - so the entries read
+    // hlx/mods/<modName>/<modName>.hl (+ hlx/plugins/*.hdll if any), and the zip can be extracted
+    // straight into the game's own install root (not its hlx/ subfolder) for any mod, whether it
+    // has a Haxe side, a native plugin, or both.
+    archive.directory(stageDir(modName), 'hlx')
     archive.finalize()
   })
 }

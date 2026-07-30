@@ -13,17 +13,22 @@ jobs:
     outputs:
       mod: ${{ steps.parse.outputs.mod }}
       version: ${{ steps.parse.outputs.version }}
+      os: ${{ steps.parse.outputs.os }}
     steps:
+      - uses: actions/checkout@v4
       - id: parse
         run: |
-          echo "mod=${GITHUB_REF_NAME%%/*}" >> "$GITHUB_OUTPUT"
+          mod="${GITHUB_REF_NAME%%/*}"
+          echo "mod=$mod" >> "$GITHUB_OUTPUT"
           echo "version=${GITHUB_REF_NAME#*/}" >> "$GITHUB_OUTPUT"
+          if [ -f "$mod/native/CMakeLists.txt" ]; then echo "os=windows-latest" >> "$GITHUB_OUTPUT"; else echo "os=ubuntu-latest" >> "$GITHUB_OUTPUT"; fi
 
   build:
     needs: parse
     uses: ./.github/workflows/reusable-build.yml
     with:
       mod: ${{ needs.parse.outputs.mod }}
+      os: ${{ needs.parse.outputs.os }}
     secrets: inherit
 
   release:
@@ -40,11 +45,13 @@ jobs:
           name: ${{ needs.parse.outputs.mod }} ${{ needs.parse.outputs.version }}
           files: dist/${{ needs.parse.outputs.mod }}.zip
 
+  # Tagging a mod means publishing it, full stop - needs a matching entry in the NEXUS_CONFIG
+  # secret (see publish-nexus.yml) or the upload step fails.
   publish-nexus:
-    if: needs.parse.outputs.mod == 'pew-pew-meter'
     needs: [parse, release]
-    uses: ./.github/workflows/publish-pewpewmeter.yml
+    uses: ./.github/workflows/publish-nexus.yml
     with:
+      mod: ${{ needs.parse.outputs.mod }}
       version: ${{ needs.parse.outputs.version }}
     secrets:
       NEXUS_CONFIG: ${{ secrets.NEXUS_CONFIG }}

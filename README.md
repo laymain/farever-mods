@@ -16,6 +16,7 @@ Each mod lives in its own top-level folder; this root holds what's shared across
 | Mod | Description |
 | --- | --- |
 | [pew-pew-meter](pew-pew-meter/README.md) | A lightweight DPS meter for Farever. |
+| [shader-persistent-cache](shader-persistent-cache/README.md) | Caches every compiled DX12 pipeline to disk. |
 
 ## Local development
 

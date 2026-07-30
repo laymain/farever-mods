@@ -6,10 +6,20 @@ on:
       mod:
         required: true
         type: string
+      os:
+        description: Runner OS - windows-latest for native mods (needs the HashLink SDK below), ubuntu-latest otherwise.
+        required: false
+        type: string
+        default: ubuntu-latest
+      hashlink_version:
+        description: HashLink release version (matches the asset name, e.g. 1.15.0 -> hashlink-1.15.0-win.zip). Only used on windows-latest.
+        required: false
+        type: string
+        default: 1.15.0
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +30,21 @@ jobs:
       - uses: krdlab/setup-haxe@v2
         with:
           haxe-version: 4.3.3
+
+      # PLUGIN-type mods (see .tools/lib/paths.mts's ModType) cmake-link against the HashLink SDK
+      # on Windows - hashlinkDir()/user-config.json is the one source every such mod's native build
+      # reads from, normally written by `npm run setup`.
+      # Release tags drop the patch version (tag "1.15" -> asset "hashlink-1.15.0-win.zip").
+      - name: Download HashLink SDK
+        if: inputs.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.hashlink_version }}" -replace '\.0$', ''
+          $zipName = "hashlink-${{ inputs.hashlink_version }}-win.zip"
+          Invoke-WebRequest -Uri "https://github.com/HaxeFoundation/hashlink/releases/download/$tag/$zipName" -OutFile hashlink.zip
+          Expand-Archive -Path hashlink.zip -DestinationPath "$env:RUNNER_TEMP\hashlink"
+          $hashlinkDir = "$env:RUNNER_TEMP\hashlink\hashlink-${{ inputs.hashlink_version }}-win"
+          @{ hashlinkDir = $hashlinkDir } | ConvertTo-Json | Set-Content .tools/user-config.json
 
       # farever-gamelib is a private repo (generated from proprietary game bytecode, can't be shipped in this repo)
       # installed as a haxelib over SSH using a read-only deploy key.

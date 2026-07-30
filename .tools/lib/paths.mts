@@ -4,14 +4,32 @@ import path from 'node:path'
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, '../..')
 
-// A "mod" is any top-level folder with its own compile.hxml - that's the one
-// marker every mod has and nothing else at repo root does.
+// A mod's kind is a bitfield inferred from what's actually in its folder, not declared anywhere -
+// MOD for a Haxe side (compile.hxml, compiled to .hl and staged under hlx/mods/<name>/), PLUGIN
+// for a native side (native/CMakeLists.txt, cmake-built and staged under hlx/plugins/<name>/). A
+// mod can be either or both: shader-cache is MOD|PLUGIN (Haxe hook + native .hdll),
+// shader-persistent-cache is PLUGIN only (no Haxe side at all), everything else is MOD only.
+export const ModType = {
+  MOD: 1 << 0,
+  PLUGIN: 1 << 1,
+} as const
+
+export function modType(modName: string): number {
+  const root = path.join(REPO_ROOT, modName)
+  let type = 0
+  if (fs.existsSync(path.join(root, 'compile.hxml'))) type |= ModType.MOD
+  if (fs.existsSync(path.join(root, 'native', 'CMakeLists.txt'))) type |= ModType.PLUGIN
+  return type
+}
+
+// A "mod" is any top-level folder with a non-zero modType() - one of its two markers
+// (compile.hxml, native/CMakeLists.txt) is something every mod has and nothing else at repo root does.
 export function discoverMods(): string[] {
   return fs
     .readdirSync(REPO_ROOT, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
-    .filter((name) => fs.existsSync(path.join(REPO_ROOT, name, 'compile.hxml')))
+    .filter((name) => modType(name) !== 0)
 }
 
 export function modRoot(modName: string): string {
@@ -26,11 +44,27 @@ export function distDir(modName: string): string {
   return path.join(modRoot(modName), 'dist')
 }
 
-// Wrapped in its own <modName>/ subfolder so build/ is already shaped exactly
-// like a valid mod archive (matching hlx-loader's hlx/mods/<name>/<name>.hl
-// scan convention) - runZip just zips build/ as-is, no extra nesting logic.
+// Raw haxe compiler output, per each mod's own compile.hxml `-hl` line - not
+// shaped like anything in particular, just where the compiler is told to put it.
 export function outputHl(modName: string): string {
   return path.join(buildDir(modName), modName, `${modName}.hl`)
+}
+
+// The assembled tree, shaped exactly like the game's own `hlx/` folder
+// (`mods/<name>/<name>.hl`, `plugins/<name>/*.hdll` - each mod gets its own plugins subfolder,
+// matching hlx-boot's own EagerLoadPluginHdlls scan, hlx-core/hlx-boot/src/boot.c) - runZip zips
+// this as-is, and deploy copies it as-is, so both stay in sync with hlx-boot/hlx-loader's own
+// folder conventions by construction rather than by duplicated logic.
+export function stageDir(modName: string): string {
+  return path.join(buildDir(modName), 'stage')
+}
+
+export function stageModDir(modName: string): string {
+  return path.join(stageDir(modName), 'mods', modName)
+}
+
+export function stagePluginsDir(modName: string): string {
+  return path.join(stageDir(modName), 'plugins', modName)
 }
 
 // This project is standalone from hlx-core's own build/deploy pipeline, but
@@ -62,4 +96,27 @@ export function gameDir(): string {
   }
   const config = JSON.parse(fs.readFileSync(HLX_CORE_CONFIG, 'utf8')) as HlxCoreConfig
   return toNativePath(config.gamePath)
+}
+
+// This project's own config (distinct from HLX_CORE_CONFIG above, which is read-only and
+// belongs to hlx-core) - currently just the HashLink SDK/checkout path every PLUGIN-type mod
+// (see ModType above) needs to cmake-build its native side against. Gitignored (machine-specific
+// path); populate via `npm run setup`.
+const USER_CONFIG_PATH = path.join(REPO_ROOT, '.tools', 'user-config.json')
+
+interface UserConfig {
+  hashlinkDir: string
+}
+
+export function readUserConfig(): UserConfig {
+  if (!fs.existsSync(USER_CONFIG_PATH)) throw new Error('.tools/user-config.json not found - run: npm run setup')
+  return JSON.parse(fs.readFileSync(USER_CONFIG_PATH, 'utf8'))
+}
+
+export function writeUserConfig(config: UserConfig): void {
+  fs.writeFileSync(USER_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n', 'utf8')
+}
+
+export function hashlinkDir(): string {
+  return toNativePath(readUserConfig().hashlinkDir)
 }

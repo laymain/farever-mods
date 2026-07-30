@@ -6,10 +6,10 @@ import { discoverMods } from './lib/paths.mts'
 const requested = process.argv[2]
 const mods = requested ? [requested] : discoverMods()
 
-if (mods.length === 0) throw new Error('No mods found (looked for compile.hxml in top-level folders).')
+if (mods.length === 0) throw new Error('No mods found (looked for compile.hxml or native/CMakeLists.txt in top-level folders).')
 
 for (const mod of mods) {
-  runBuild(mod)
+  await runBuild(mod)
   await runZip(mod)
 }
 console.log(`\nBuild complete (${mods.join(', ')}).`)

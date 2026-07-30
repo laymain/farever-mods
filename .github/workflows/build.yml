@@ -5,6 +5,12 @@ on:
     branches: ['**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      hashlink_version:
+        description: HashLink release version for native (Windows) mod builds, e.g. 1.15.0
+        required: false
+        default: 1.15.0
+        type: string
 
 jobs:
   discover:
@@ -15,16 +21,25 @@ jobs:
       - uses: actions/checkout@v4
       - id: list
         run: |
-          mods=$(find . -mindepth 2 -maxdepth 2 -name compile.hxml -exec dirname {} \; \
-            | xargs -n1 basename | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "mods=$mods" >> "$GITHUB_OUTPUT"
+          # A mod is any top-level folder with a compile.hxml (Haxe side) and/or a
+          # native/CMakeLists.txt (native plugin side) - mirrors .tools/lib/paths.mts's modType().
+          include=$(for d in */; do
+            mod="${d%/}"
+            if [ -f "$mod/compile.hxml" ] || [ -f "$mod/native/CMakeLists.txt" ]; then
+              if [ -f "$mod/native/CMakeLists.txt" ]; then os=windows-latest; else os=ubuntu-latest; fi
+              jq -n --arg mod "$mod" --arg os "$os" '{mod: $mod, os: $os}'
+            fi
+          done | jq -s -c .)
+          echo "mods=$include" >> "$GITHUB_OUTPUT"
 
   build:
     needs: discover
     strategy:
       matrix:
-        mod: ${{ fromJSON(needs.discover.outputs.mods) }}
+        include: ${{ fromJSON(needs.discover.outputs.mods) }}
     uses: ./.github/workflows/reusable-build.yml
     with:
       mod: ${{ matrix.mod }}
+      os: ${{ matrix.os }}
+      hashlink_version: ${{ inputs.hashlink_version || '1.15.0' }}
     secrets: inherit
