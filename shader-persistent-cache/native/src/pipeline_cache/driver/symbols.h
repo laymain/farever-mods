@@ -2,10 +2,10 @@
 
 #include "../types.h"
 
-// One typedef + one resolved function pointer per real "dx12" native (98 total, including
+// One typedef + one resolved function pointer per real "dx12" native (99 total, including
 // get_device - resolved the same way as everything else even though its own stub adds
 // device-capture logic on top of the plain forward). Populated once, in LoadDx12Impl, right
-// after dx12_original.hdll itself loads. Shared by forwarding.cpp (94 mechanical stubs) and
+// after dx12_original.hdll itself loads. Shared by forwarding.cpp (95 mechanical stubs) and
 // intercepts.cpp (the 4 stubs with real cache logic).
 
 typedef dx_device (*Fn_get_device)(void);
@@ -106,6 +106,9 @@ typedef varray * (*Fn_list_devices)(void);
 typedef int64 (*Fn_get_timestamp_frequency)(void);
 typedef int64 (*Fn_get_driver_version)(void);
 typedef void (*Fn_query_video_memory_info)(int, void *);
+// Added by a Farever game update (fn#31078) - takes the game's GPU-crash callback closure as its
+// only argument and just forwards it through; this proxy never calls into it itself.
+typedef void (*Fn_set_gpu_crash_handler)(vclosure *);
 
 extern Fn_get_device GReal_get_device;
 extern Fn_resource_release GReal_resource_release;
@@ -205,7 +208,8 @@ extern Fn_list_devices GReal_list_devices;
 extern Fn_get_timestamp_frequency GReal_get_timestamp_frequency;
 extern Fn_get_driver_version GReal_get_driver_version;
 extern Fn_query_video_memory_info GReal_query_video_memory_info;
+extern Fn_set_gpu_crash_handler GReal_set_gpu_crash_handler;
 
-// Loads dx12_original.hdll (via GetDx12ImplPath) and resolves all 98 GReal_<name> pointers above
+// Loads dx12_original.hdll (via GetDx12ImplPath) and resolves all 99 GReal_<name> pointers above
 // from its export table.
 void LoadDx12Impl(const char *selfDir);

@@ -4,7 +4,7 @@
 #include "../log.h"
 
 // ---- Forwarding exports (Section 7) ----
-// The 94 dx12 natives with no cache-integration logic: each just forwards straight through to
+// The 95 dx12 natives with no cache-integration logic: each just forwards straight through to
 // dx12_original.hdll's own real implementation. get_device, rootsignature_create,
 // create_graphics_pipeline_state and create_compute_pipeline_state are the 4 exceptions - see
 // intercepts.cpp.
@@ -601,3 +601,11 @@ HL_PRIM void HL_NAME(query_video_memory_info)(int a0, void * a1) {
 }
 
 DEFINE_PRIM(_VOID, query_video_memory_info, _I32 _STRUCT);
+
+// Added by a Farever game update (fn#31078) - a plain forward like everything else here, this
+// proxy never invokes the callback itself, just passes the closure through.
+HL_PRIM void HL_NAME(set_gpu_crash_handler)(vclosure * a0) {
+	if (GReal_set_gpu_crash_handler) GReal_set_gpu_crash_handler(a0);
+}
+
+DEFINE_PRIM(_VOID, set_gpu_crash_handler, _FUN(_VOID, _BYTES _BYTES _I32 _BOOL));

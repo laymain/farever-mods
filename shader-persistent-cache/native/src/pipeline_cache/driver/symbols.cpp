@@ -104,6 +104,7 @@ Fn_list_devices GReal_list_devices = NULL;
 Fn_get_timestamp_frequency GReal_get_timestamp_frequency = NULL;
 Fn_get_driver_version GReal_get_driver_version = NULL;
 Fn_query_video_memory_info GReal_query_video_memory_info = NULL;
+Fn_set_gpu_crash_handler GReal_set_gpu_crash_handler = NULL;
 
 struct NativeForward {
 	const char *name;
@@ -209,6 +210,7 @@ static NativeForward GForwardTable[] = {
 	{ "get_timestamp_frequency", (void **)&GReal_get_timestamp_frequency },
 	{ "get_driver_version", (void **)&GReal_get_driver_version },
 	{ "query_video_memory_info", (void **)&GReal_query_video_memory_info },
+	{ "set_gpu_crash_handler", (void **)&GReal_set_gpu_crash_handler },
 };
 
 static HMODULE GImplModule = NULL;

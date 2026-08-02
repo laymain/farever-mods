@@ -5,7 +5,7 @@
 // (NATIVE.md Section 3-7). This bridge exists only to serve the cache above it, not as a
 // standalone concern.
 
-// Refreshes dx12_original.hdll's on-disk copy (driver/refresh.h), loads it, and resolves all 98 real
-// native function pointers (driver/symbols.h) - the 94 mechanical passthroughs (driver/forwarding.cpp)
+// Refreshes dx12_original.hdll's on-disk copy (driver/refresh.h), loads it, and resolves all 99 real
+// native function pointers (driver/symbols.h) - the 95 mechanical passthroughs (driver/forwarding.cpp)
 // and the 4 cache-integrating natives (driver/intercepts.cpp) both read through those pointers.
 void InitDriverBridge(const char *selfDir);

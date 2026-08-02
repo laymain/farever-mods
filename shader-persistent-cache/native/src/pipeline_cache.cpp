@@ -23,10 +23,13 @@
 // device setup. This mod's own Haxe side (ShaderPersistentCacheMod.hx) is now just a build-tooling
 // anchor with no native calls at all.
 //
-// This exact set of 98 natives/signatures was generated from the game's own compiled bytecode
+// This set of 99 natives/signatures was generated from the game's own compiled bytecode
 // (HLX.Viewer's `funcs dx12` against the real hlboot.dat), cross-checked against the real
-// dx12.hdll's own export table (`objdump -p`) - both give exactly 98 dx12_<name>/hlp_<name>
-// pairs (196 exports total), matching NATIVE.md Section 2's own count exactly.
+// dx12.hdll's own export table (`objdump -p`) - both give exactly 99 dx12_<name>/hlp_<name>
+// pairs (198 exports total). Originally 98/196 (matching NATIVE.md Section 2's own count) -
+// a later Farever update added set_gpu_crash_handler (driver/forwarding.cpp), the first time this
+// count has needed to move; re-run the same HLX.Viewer/objdump cross-check after any future game
+// update to catch further drift the same way.
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD reason, LPVOID) {
 	if (reason == DLL_PROCESS_DETACH) {

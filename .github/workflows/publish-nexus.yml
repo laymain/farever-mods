@@ -46,7 +46,7 @@ jobs:
           file_id: ${{ steps.nexus.outputs.file_id }}
           filename: dist/${{ inputs.mod }}.zip
           version: ${{ inputs.version }}
-          display_name: ${{ inputs.mod }} ${{ inputs.version }}
+          display_name: ${{ inputs.mod }}
           description: https://www.nexusmods.com/${{ steps.nexus.outputs.domain }}/mods/${{ steps.nexus.outputs.mod_id }}
           category: main
           archive_existing_version: true
