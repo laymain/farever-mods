@@ -1,0 +1,12 @@
+{
+  "name": "hl-imgui",
+  "url": "https://github.com/laymain/farever-mods",
+  "license": "MIT",
+  "tags": ["hashlink", "imgui", "modding"],
+  "description": "Haxe/HashLink bindings for Dear ImGui, backed by imgui.hdll",
+  "version": "0.0.1",
+  "classPath": "src",
+  "releasenote": "Initial release.",
+  "contributors": ["laymain"],
+  "dependencies": {}
+}

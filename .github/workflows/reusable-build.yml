@@ -56,6 +56,7 @@ jobs:
         run: |
           haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
           haxelib git farever-gamelib git@github.com:laymain/farever-gamelib.git main
+          haxelib dev hl-imgui imgui/hl-imgui
 
       - run: npm ci
       - run: npm run build -- ${{ inputs.mod }}

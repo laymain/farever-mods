@@ -17,6 +17,8 @@ Each mod lives in its own top-level folder; this root holds what's shared across
 | --- | --- |
 | [pew-pew-meter](pew-pew-meter/README.md) | A lightweight DPS meter for Farever. |
 | [shader-persistent-cache](shader-persistent-cache/README.md) | Caches every compiled DX12 pipeline to disk. |
+| [imgui](imgui/README.md) | Native [Dear ImGui](https://github.com/ocornut/imgui) wrapper (`imgui64.hdll`) + the `hl-imgui` haxelib mods use to call into it. |
+| [imgui-demo](imgui-demo/README.md) | Smoke-test mod for `imgui`/`hl-imgui` - a tabbed ImGui window covering most of the widget surface. |
 
 ## Local development
 
@@ -26,6 +28,7 @@ Set up the haxelibs each mod compiles against:
 haxelib git hlx-runtime https://github.com/hlx-framework/hlx-core.git main hlx-runtime/src
 hlx-gamelib-generator <path/to/farever/hlboot.dat> <output/gamelib/directory>
 haxelib dev farever-gamelib <output/gamelib/directory>
+haxelib dev hl-imgui imgui/hl-imgui
 ```
 
 Then install npm dependencies and build:
