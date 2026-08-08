@@ -1,0 +1,9 @@
+-lib farever-gamelib
+-lib hlx-runtime
+-lib hl-imgui
+-D hl-ver=1.16.0
+-cp src
+-main demo.ImguiDemoMod
+-dce full
+-debug
+-hl build/imgui-demo/imgui-demo.hl
