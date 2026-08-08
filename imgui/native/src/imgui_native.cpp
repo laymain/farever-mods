@@ -75,6 +75,15 @@ HL_PRIM void HL_NAME(init)(ID3D12Device *device, int numFramesInFlight, int rtvF
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
+	// This is an overlay over the game's own window, not a standalone ImGui app - the game, not
+	// ImGui, owns the system cursor. Without this flag, imgui_impl_win32's
+	// ImGui_ImplWin32_UpdateMouseCursor calls ::SetCursor() every NewFrame() and on every
+	// WM_SETCURSOR message, unconditionally replacing the game's custom cursor icon with a plain
+	// arrow and un-hiding it whenever the game hides it (see imgui_impl_win32.cpp's
+	// ImGui_ImplWin32_UpdateMouseCursor). Setting NoMouseCursorChange makes that function a no-op
+	// and lets WM_SETCURSOR fall through to the game's original WndProc instead.
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	heapDesc.NumDescriptors = 1;
