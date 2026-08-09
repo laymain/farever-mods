@@ -98,14 +98,45 @@ abstract ImGui(Void) {
 	@:hlNative("imgui", "register")
 	static function register_(name:hl.Bytes, draw:Void->Void):Void {}
 
-	public static inline function register(name:String, draw:Void->Void):Void
+	public static inline function register(name:String, draw:Void->Void):Void {
+		ImGuiFrame.ensureRegistered();
 		register_(cstr(name), draw);
+	}
 
 	@:hlNative("imgui", "unregister")
 	static function unregister_(name:hl.Bytes):Void {}
 
 	public static inline function unregister(name:String):Void
 		unregister_(cstr(name));
+
+	// -- textures (imgui_native.cpp's register_texture/image) -----------------------------------
+	//
+	// Hand-written, not generated: ImGui::Image()'s real signature takes a by-value ImTextureRef
+	// struct, which the generator's type resolver can't marshal (native/codegen/generate.mts's
+	// resolveBase, by-value-nonPOD-struct guard).
+
+	// pixels must already be RGBA8, row-major, with row pitch srcRowPitch (may exceed width * 4 -
+	// e.g. hxd.Pixels.stride can include row padding). Uploads to the GPU and waits synchronously,
+	// so callers should register once per distinct image and cache the returned handle (e.g. keyed
+	// by source file) rather than re-registering every frame. Identical pixel content is
+	// deduplicated natively (by content hash), even across different mods' own private caches, so
+	// redundant registrations of the same asset are cheap rather than each costing a fresh upload.
+	@:hlNative("imgui", "register_texture")
+	public static function registerTexture(pixels:hl.Bytes, width:Int, height:Int, srcRowPitch:Int):hl.I64 {
+		return 0;
+	}
+
+	@:hlNative("imgui", "image")
+	private static function image_(texId:hl.I64, w:Single, h:Single, u0:Single, v0:Single, u1:Single, v1:Single):Void {}
+
+	// texId is a handle returned by registerTexture() above. uv0/uv1 default to ImGui::Image()'s
+	// own defaults (the whole texture) - pass a sub-rect's own UVs to draw one region out of a
+	// shared texture instead (e.g. one icon from a spritesheet).
+	public static inline function image(texId:hl.I64, size:Vec2, ?uv0:Vec2, ?uv1:Vec2):Void {
+		var a = uv0 == null ? vec2(0, 0) : uv0;
+		var b = uv1 == null ? vec2(1, 1) : uv1;
+		image_(texId, size.x, size.y, a.x, a.y, b.x, b.y);
+	}
 
 	// -- text -----------------------------------------------------------------------------------
 
@@ -114,6 +145,55 @@ abstract ImGui(Void) {
 	// marshaling, so this is the closest equivalent and the one most callers reach for by name.
 	public static inline function text(text:String):Void
 		textUnformatted(text);
+
+	// -- table sorting ------------------------------------------------------------------------
+	//
+	// Hand-written, not generated: tableGetSortSpecs() (below, in the generated block) returns
+	// the real cimgui-bound ImGuiTableSortSpecs* - but its Specs/SpecsCount/SpecsDirty are plain
+	// struct fields, not cimgui functions, so the generator (which only binds cimgui's flat
+	// function list) has nothing to bind for reading them. imgui_native.cpp's
+	// ImGuiTableSortSpecs_* glue fills that gap.
+
+	@:hlNative("imgui", "ImGuiTableSortSpecs_GetSpecsCount")
+	private static function _tableSortSpecsGetSpecsCount(specs:ImGuiTableSortSpecs):Int {
+		return 0;
+	}
+
+	public static inline function tableSortSpecsGetSpecsCount(specs:ImGuiTableSortSpecs):Int
+		return _tableSortSpecsGetSpecsCount(specs);
+
+	@:hlNative("imgui", "ImGuiTableSortSpecs_GetSpecsDirty")
+	private static function _tableSortSpecsGetSpecsDirty(specs:ImGuiTableSortSpecs):Bool {
+		return false;
+	}
+
+	public static inline function tableSortSpecsGetSpecsDirty(specs:ImGuiTableSortSpecs):Bool
+		return _tableSortSpecsGetSpecsDirty(specs);
+
+	@:hlNative("imgui", "ImGuiTableSortSpecs_SetSpecsDirty")
+	private static function _tableSortSpecsSetSpecsDirty(specs:ImGuiTableSortSpecs, dirty:Bool):Void {}
+
+	public static inline function tableSortSpecsSetSpecsDirty(specs:ImGuiTableSortSpecs, dirty:Bool):Void
+		_tableSortSpecsSetSpecsDirty(specs, dirty);
+
+	// Column index into the table (matching tableSetupColumn() submission order), as declared by
+	// ImGuiTableColumnSortSpecs::ColumnIndex - not the same thing as a user-assigned sort ID.
+	@:hlNative("imgui", "ImGuiTableSortSpecs_GetColumnIndex")
+	private static function _tableSortSpecsGetColumnIndex(specs:ImGuiTableSortSpecs, i:Int):Int {
+		return -1;
+	}
+
+	public static inline function tableSortSpecsGetColumnIndex(specs:ImGuiTableSortSpecs, i:Int):Int
+		return _tableSortSpecsGetColumnIndex(specs, i);
+
+	// ImGuiSortDirection value (None/Ascending/Descending, see imgui.Enums.ImGuiSortDirection).
+	@:hlNative("imgui", "ImGuiTableSortSpecs_GetSortDirection")
+	private static function _tableSortSpecsGetSortDirection(specs:ImGuiTableSortSpecs, i:Int):Int {
+		return 0;
+	}
+
+	public static inline function tableSortSpecsGetSortDirection(specs:ImGuiTableSortSpecs, i:Int):Int
+		return _tableSortSpecsGetSortDirection(specs, i);
 
 	// >>> GENERATED by native/codegen/generate.mts below this point - do not hand-edit, re-run the generator instead. >>>
 	@:hlNative("imgui", "ImColor_SetHSV")

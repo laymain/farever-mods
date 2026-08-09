@@ -5,5 +5,4 @@
 -cp src
 -main demo.ImguiDemoMod
 -dce full
--debug
 -hl build/imgui-demo/imgui-demo.hl

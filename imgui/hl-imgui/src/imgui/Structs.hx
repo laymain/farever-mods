@@ -5,7 +5,10 @@ package imgui;
 class ImVec2 {
 	public var x:Single;
 	public var y:Single;
-	public function new() {}
+	public function new(x:Single = 0, y:Single = 0) {
+		this.x = x;
+		this.y = y;
+	}
 }
 
 @:struct
@@ -14,6 +17,10 @@ class ImVec4 {
 	public var y:Single;
 	public var z:Single;
 	public var w:Single;
-	public function new() {}
+	public function new(x:Single = 0, y:Single = 0, z:Single = 0, w:Single = 0) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		this.w = w;
+	}
 }
-

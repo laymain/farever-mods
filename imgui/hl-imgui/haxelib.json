@@ -4,9 +4,9 @@
   "license": "MIT",
   "tags": ["hashlink", "imgui", "modding"],
   "description": "Haxe/HashLink bindings for Dear ImGui, backed by imgui.hdll",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "classPath": "src",
-  "releasenote": "Initial release.",
+  "releasenote": "Add texture rendering (registerTexture/image) and table sort spec accessors; fix multi-mod frame hook installation and GPU rendering corruption.",
   "contributors": ["laymain"],
   "dependencies": {}
 }

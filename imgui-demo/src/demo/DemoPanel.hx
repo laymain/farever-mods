@@ -67,6 +67,9 @@ class DemoPanel {
 		{name: "Peregrine", level: 20, klass: "Mage"}
 	];
 
+	var iconTexture:hl.I64 = 0;
+	var iconRegistered = false;
+
 	public function new() {
 		nameBuf.setUI8(0, 0);
 		hintBuf.setUI8(0, 0);
@@ -329,5 +332,31 @@ class DemoPanel {
 			ImGui.ImDrawList_AddCircleFilled(drawList, ImGui.vec2(origin.x + 90 + wobble, origin.y + 110), 14, 0xFFCC4433);
 		}
 		ImGui.endChild();
+
+		ImGui.separatorText("Icon texture");
+		ensureIconTexture();
+		ImGui.image(iconTexture, ImGui.vec2(64, 64));
+	}
+
+	// A small synthetic checkerboard, standing in for a real game icon - proves the
+	// registerTexture/image native round-trip (upload, SRV, draw) without needing an actual
+	// asset file. Registered once and cached, per registerTexture()'s own doc comment.
+	function ensureIconTexture():Void {
+		if (iconRegistered) return;
+		iconRegistered = true;
+
+		var size = 8;
+		var pixels = new hl.Bytes(size * size * 4);
+		for (y in 0...size) {
+			for (x in 0...size) {
+				var i = (y * size + x) * 4;
+				var on = (x + y) % 2 == 0;
+				pixels.setUI8(i, on ? 0xFF : 0x22);
+				pixels.setUI8(i + 1, on ? 0xAA : 0x22);
+				pixels.setUI8(i + 2, on ? 0x33 : 0x22);
+				pixels.setUI8(i + 3, 0xFF);
+			}
+		}
+		iconTexture = ImGui.registerTexture(pixels, size, size, size * 4);
 	}
 }

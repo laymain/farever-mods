@@ -4,6 +4,7 @@
 | --- | --- | --- |
 | [Dear ImGui](https://github.com/ocornut/imgui) | v1.92.9 (+1 fix commit) | `a9e7a8c880cf4a7fbf142b13a41bcbb1f43d0938` |
 | [cimgui](https://github.com/cimgui/cimgui) | 1.92.9 | tag `1.92.9` |
+| [xxHash](https://github.com/Cyan4973/xxHash) | v0.8.3 | `e626a72bc2321cd320e953a0ccf1584cad60f363` |
 
 The Dear ImGui commit is **not** the `v1.92.9` tag itself — it's the exact commit cimgui's
 `1.92.9` tag pins as its `imgui` submodule (one commit past the tag, a same-day regression fix
@@ -22,6 +23,10 @@ Vendored subset:
   structs_and_enums,typedefs_dict}.json` — the machine-readable API metadata
   `native/codegen/generate.mts` reads to emit bindings. No `imgui/` submodule copy — cimgui's own
   `cimgui.cpp` is compiled directly against the `../imgui/` sources above.
+- `xxhash/`: `xxhash.h` + `LICENSE` only — the upstream repo's single-header amalgamation, used for
+  content-hashing texture pixels in `register_texture` (src/imgui_native.cpp). No `.c` file to add
+  to the CMake source list: `XXH_IMPLEMENTATION` is defined once, directly in
+  `src/imgui_native.cpp`, ahead of the `#include`, per the header's own documented single-TU usage.
 
 ## Bumping the version
 
