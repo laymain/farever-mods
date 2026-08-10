@@ -5,14 +5,7 @@ import pew.roster.Combatant;
 import pew.roster.RosterTracker;
 import pew.panel.MeterPanel;
 
-/**
-	Refreshes the live `MeterPanel`, if one currently exists, with the same
-	cadence `pew.tracking.DpsTracker` already gates trace-style reporters on
-	(`REPORT_INTERVAL`, plus the unconditional final report on encounter end) -
-	panel construction/attachment stays in `DpsTracker` (it's the only place
-	with `GameApp`/scene access), so the panel is read via an accessor closure
-	rather than owned here.
-**/
+// Reads MeterPanel via closure rather than owning it - DpsTracker is the only place with GameApp/scene access to construct one.
 class PanelDpsReporter implements DpsReporter {
 	final getPanel:Void->MeterPanel;
 

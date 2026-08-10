@@ -1,10 +1,5 @@
 package pew.roster;
 
-/**
-	Accumulated damage for one combatant over the current encounter. Owns
-	its own mutation (`record`/`reset`) instead of being a plain bag that
-	external code pokes fields on directly.
-**/
 class DamageStats {
 	public var total(default, null) = 0.0;
 	public var hits(default, null) = 0;
@@ -18,17 +13,7 @@ class DamageStats {
 		if (isCritical) crits++;
 	}
 
-	// A minimum floor on the divisor, not on whether a dps is reported at
-	// all: a fight's very first hit sets `startedAt`/`lastHitAt` (see
-	// pew.tracking.Encounter) only microseconds apart, since `startEncounter()`
-	// calls `encounter.start()` immediately followed by `encounter.
-	// recordHit()` in the same call - `duration` is then a genuine but
-	// absurdly tiny positive number, and dividing by it produces a
-	// multi-million "dps" spike from a single hit. A rate isn't actually
-	// meaningful from one instant anyway; clamping the divisor to a sane
-	// floor (rather than suppressing the row/report entirely) gives a
-	// conservative, sane-looking estimate that converges to the true value
-	// as more real time passes - the same approach real DPS meters use.
+	// Floors the divisor - a fight's first hit lands microseconds after start(), and dividing by that tiny duration spikes to a multi-million "dps".
 	static inline var MIN_DURATION = 0.5;
 
 	public function dps(duration:Float):Float {

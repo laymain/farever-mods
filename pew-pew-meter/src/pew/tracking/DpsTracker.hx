@@ -15,6 +15,10 @@ class DpsTracker {
 	static inline var IDLE_TIMEOUT = 60.0;
 	static inline var LEAVE_COMBAT_GRACE = 1.0;
 
+	// Distinct from any real skill id so it can never collide.
+	static inline var BASE_ATTACK_KEY = "__base_attack__";
+	static inline var UNATTRIBUTED_KEY = "__unattributed__";
+
 	var rosterTracker = new RosterTracker();
 	var encounter = new Encounter();
 	var reporter:DpsReporter;
@@ -22,7 +26,7 @@ class DpsTracker {
 	var nextReport = 0.0;
 	var pendingCloseAt = -1.0;
 
-	var panel:pew.panel.MeterPanel;
+	public var panel:pew.panel.MeterPanel;
 
 	function new() {
 		reporter = new PanelDpsReporter(() -> panel);
@@ -49,19 +53,6 @@ class DpsTracker {
 			} else if (now >= nextReport) {
 				reporter.report(encounter, rosterTracker.all(), false);
 				nextReport = now + REPORT_INTERVAL;
-			}
-		}
-
-		if (app.gui != null) {
-			var container = app.gui.getDragContainer();
-			var containerScene = container != null ? container.getScene() : null;
-			if (containerScene != null && (panel == null || panel.root.getScene() != containerScene)) {
-				panel = new pew.panel.MeterPanel(container, true);
-				panel.loadState(PewPewMeterMod.config.meterPanelState);
-				panel.onStateChanged = state -> {
-					PewPewMeterMod.config.meterPanelState = state;
-					PewPewMeterMod.config.save();
-				};
 			}
 		}
 	}
@@ -109,7 +100,20 @@ class DpsTracker {
 			startEncounter();
 		}
 		encounter.recordHit();
-		combatant.stats.record(amount, dmg.get_critical());
+		var isCritical = dmg.get_critical();
+		combatant.stats.record(amount, isCritical);
+
+		// dmg.baseSkill forwards directly via @:forward, bypassing ctx (observed null even for hits that needed skill attribution).
+		var skill:st.skill.BaseSkill = dmg.baseSkill;
+
+		if (skill != null) {
+			// Keyed by display name, not skill id - some multi-step combos use several skill ids sharing one display name.
+			combatant.recordSkillDamage(skill.inf.texts.name, skill.inf.texts.name, skill.inf.gfx, amount, isCritical);
+		} else if (dmg.get_isBaseAttack()) {
+			combatant.recordSkillDamage(BASE_ATTACK_KEY, "Basic Attack", null, amount, isCritical);
+		} else {
+			combatant.recordSkillDamage(UNATTRIBUTED_KEY, "Unattributed", null, amount, isCritical);
+		}
 	}
 
 	function startEncounter():Void {

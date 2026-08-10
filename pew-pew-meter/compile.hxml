@@ -1,8 +1,8 @@
 -lib farever-gamelib
 -lib hlx-runtime
--cp res
+-lib hl-imgui
+-D hl-ver=1.16.0
 -cp src
--cp macro
 -main pew.PewPewMeterMod
 -dce full
 -hl build/pew-pew-meter/pew-pew-meter.hl
