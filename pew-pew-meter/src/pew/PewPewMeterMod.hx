@@ -4,8 +4,6 @@ import ent.Unit;
 import st.skill.DamageResult;
 import imgui.ImGui;
 import pew.tracking.DpsTracker;
-import pew.panel.PanelTheme;
-import pew.panel.PanelTheme.PanelThemeConfig;
 import pew.panel.MeterPanel;
 import pew.panel.MeterPanel.MeterPanelState;
 import pew.panel.CombatantDetailPanel;
@@ -14,7 +12,6 @@ import pew.panel.CombatantDetailPanel.DetailPanelState;
 typedef PewPewMeterConfig = {
 	var meterPanelState:MeterPanelState;
 	var detailPanelState:DetailPanelState;
-	var theme:PanelThemeConfig;
 }
 
 @:build(hlx.runtime.Mod.build())
@@ -22,8 +19,7 @@ class PewPewMeterMod {
 	@:hlx.config
 	public static var config(default, null):PewPewMeterConfig = {
 		meterPanelState: {x: 16, y: 16, width: 400, height: 45, collapsed: false},
-		detailPanelState: {x: 440, y: 16, opened: false, collapsed: false},
-		theme: PanelTheme.defaultConfig()
+		detailPanelState: {x: 440, y: 16, opened: false, collapsed: false}
 	};
 
 	static function main():Void {
@@ -33,19 +29,18 @@ class PewPewMeterMod {
 			config.save();
 		};
 
-		var detailPanel = new CombatantDetailPanel(panel, config.detailPanelState, PanelTheme.color(config.theme.rollupRowBg));
+		var detailPanel = new CombatantDetailPanel(panel, config.detailPanelState);
 		detailPanel.onStateChanged = state -> {
 			config.detailPanelState = state;
 			config.save();
 		};
 		panel.onOpenDetail = detailPanel.show;
 
-		var theme = PanelTheme.build(config.theme);
 		DpsTracker.instance.panel = panel;
-		ImGui.register(HlxRuntime.moduleName(), () -> theme.wrap(() -> {
+		ImGui.register(HlxRuntime.moduleName(), () -> {
 			panel.draw();
 			detailPanel.draw();
-		}));
+		});
 	}
 
 	@:hlx.postfix(GameApp.update)

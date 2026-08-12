@@ -2,11 +2,9 @@ package pew.panel;
 
 import imgui.ImGui;
 import imgui.Enums.ImGuiCond;
-import imgui.Enums.ImGuiTableBgTarget;
 import imgui.Enums.ImGuiTableColumnFlags;
 import imgui.Enums.ImGuiTableFlags;
 import imgui.Enums.ImGuiWindowFlags;
-import imgui.Structs.ImVec4;
 import imgui.ref.BoolRef;
 import pew.panel.MeterPanel.MeterRowData;
 
@@ -25,12 +23,10 @@ class CombatantDetailPanel {
 	var state:DetailPanelState;
 	var open:BoolRef;
 	var selectedName:String;
-	var rollupRowBgColor:ImVec4;
 
-	public function new(meterPanel:MeterPanel, state:DetailPanelState, rollupRowBgColor:ImVec4) {
+	public function new(meterPanel:MeterPanel, state:DetailPanelState) {
 		this.meterPanel = meterPanel;
 		this.state = state;
-		this.rollupRowBgColor = rollupRowBgColor;
 		open = new BoolRef(state.opened);
 	}
 
@@ -79,9 +75,7 @@ class CombatantDetailPanel {
 			ImGui.tableSetupColumn("%", ImGuiTableColumnFlags.WidthStretch, 1.75);
 			ImGui.tableHeadersRow();
 
-			// getColorU32_Vec4 needs a live ImGui context, which doesn't exist yet at mod-load/construction time.
 			ImGui.tableNextRow();
-			ImGui.tableSetBgColor(ImGuiTableBgTarget.RowBg0, ImGui.getColorU32_Vec4(rollupRowBgColor));
 			MeterPanel.drawRow(row, true, false);
 
 			for (skillRow in meterPanel.findSkillRows(row.name)) {
