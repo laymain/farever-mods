@@ -4,9 +4,9 @@
   "license": "MIT",
   "tags": ["hashlink", "imgui", "modding"],
   "description": "Haxe/HashLink bindings for Dear ImGui, backed by imgui.hdll",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "classPath": "src",
-  "releasenote": "Add texture rendering (registerTexture/image) and table sort spec accessors; fix multi-mod frame hook installation and GPU rendering corruption.",
+  "releasenote": "Add a default color/style theme, applied once at native init and persisted to hlx/config/imgui/theme.conf, so mods no longer need to bring or apply their own.",
   "contributors": ["laymain"],
   "dependencies": {}
 }

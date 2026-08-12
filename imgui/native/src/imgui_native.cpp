@@ -17,6 +17,7 @@
 #include "../third_party/imgui/imgui.h"
 #include "../third_party/imgui/backends/imgui_impl_win32.h"
 #include "../third_party/imgui/backends/imgui_impl_dx12.h"
+#include "imgui_theme.h"
 
 // Single-TU amalgamated build, per the header's own documented usage - this is the only place in
 // the plugin that includes xxhash.h, so there's no ODR risk from defining the implementation here.
@@ -189,6 +190,9 @@ HL_PRIM void HL_NAME(init)(ID3D12Device *device, int numFramesInFlight, int rtvF
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+
+	ApplyDefaultTheme();
+	LoadOrInitThemeConfig();
 
 	// This is an overlay over the game's own window, not a standalone ImGui app - the game, not
 	// ImGui, owns the system cursor. Without this flag, imgui_impl_win32's

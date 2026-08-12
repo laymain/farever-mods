@@ -24,6 +24,7 @@ add_library(imgui.hdll SHARED
     third_party/imgui/backends/imgui_impl_dx12.cpp
     third_party/cimgui/cimgui.cpp
     src/imgui_native.cpp
+    src/imgui_theme.cpp
     src/generated/imgui_prims.cpp
 )
 
