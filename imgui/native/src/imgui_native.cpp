@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdlib>
+#include <cstring>
 
 // Forward-declared here rather than pulled from imgui_impl_win32.h directly - that header
 // deliberately leaves it commented out (inside a `#if 0` block) to avoid dragging a <windows.h>
@@ -181,6 +182,159 @@ static void waitForUploadToComplete() {
 static bool g_contextInitialized = false;
 static bool g_win32Initialized = false;
 
+// -- bundled Unicode font + user-dropped fallback fonts (Latin + Latin Extended + Greek +
+// Cyrillic shipped by default, deliberately NOT CJK - see native/fonts/NotoSans-Regular.ttf's own
+// provenance; a player who needs another script drops their own font file into this same fonts/
+// folder, see README.md's font section) -----------------------------------------------------------
+//
+// This plugin has no logging of its own (grepped: no hlx_log/OutputDebugString/etc anywhere in
+// this file or imgui_theme.cpp) - the comments below are the only "log" a load failure gets, on
+// the theory that the graceful fallback (ImGui's own built-in default font, ASCII/Latin-1 only)
+// is a silent degrade, not a crash, so it doesn't warrant inventing a logging path just for this.
+
+// Unicode block ranges (verified against the standard block chart), deliberately wider than
+// ImGui's own GetGlyphRangesDefault() (Basic Latin + Latin-1 Supplement only):
+//   0x0020-0x00FF  Basic Latin + Latin-1 Supplement
+//   0x0100-0x024F  Latin Extended-A + Latin Extended-B
+//   0x0370-0x03FF  Greek and Coptic
+//   0x0400-0x052F  Cyrillic + Cyrillic Supplement
+//   0x2000-0x206F  General Punctuation (smart quotes, dashes, ellipsis - common in any of the
+//                  above scripts' real-world text, not just CJK)
+// A static ImWchar pair array terminated by 0,0 (ImFontAtlas::AddFontFromFileTTF's own documented
+// glyph_ranges shape) is simpler than building one with ImFontGlyphRangesBuilder for a fixed,
+// known-in-advance set of blocks like this. This is the PRIMARY font's range only, restricted
+// deliberately - see kFallbackGlyphRanges below for why merged fallback fonts get a much wider one.
+static const ImWchar kUnicodeGlyphRanges[] = {
+	0x0020, 0x00FF,
+	0x0100, 0x024F,
+	0x0370, 0x03FF,
+	0x0400, 0x052F,
+	0x2000, 0x206F,
+	0, 0,
+};
+
+// Glyph range for the one hardcoded fallback font below (kFallbackFontFileName). Noto Sans CJK's
+// regional variants (SC/TC/JP/KR) all ship the same pan-CJK glyph repertoire - Han ideographs,
+// Hiragana, Katakana, AND Hangul - differing only in the default shape preferred for a handful of
+// regionally-ambiguous Han characters, not in which scripts are covered. So this range is correct
+// for the SC variant we hardcode below despite covering Korean/Japanese-specific blocks too.
+// ImFontConfig::MergeMode (imgui.h) only fills in codepoints the destination ImFont doesn't
+// already have, so requesting this whole range is safe regardless: it can never override/corrupt
+// the primary's already-loaded Latin/Greek/Cyrillic glyphs, only add glyphs the primary lacks.
+//   0x1100-0x11FF  Hangul Jamo
+//   0x3000-0x303F  CJK Symbols and Punctuation
+//   0x3040-0x309F  Hiragana
+//   0x30A0-0x30FF  Katakana
+//   0x3400-0x4DBF  CJK Unified Ideographs Extension A
+//   0x4E00-0x9FFF  CJK Unified Ideographs (the main ~21000-character block - matches the "full
+//                  set" GetGlyphRangesChineseFull()'s own doc comment refers to)
+//   0xAC00-0xD7A3  Hangul Syllables
+//   0xF900-0xFAFF  CJK Compatibility Ideographs
+//   0xFF00-0xFFEF  Halfwidth and Fullwidth Forms (common CJK punctuation/spacing variants)
+static const ImWchar kFallbackGlyphRanges[] = {
+	0x1100, 0x11FF,
+	0x3000, 0x303F,
+	0x3040, 0x309F,
+	0x30A0, 0x30FF,
+	0x3400, 0x4DBF,
+	0x4E00, 0x9FFF,
+	0xAC00, 0xD7A3,
+	0xF900, 0xFAFF,
+	0xFF00, 0xFFEF,
+	0, 0,
+};
+
+// Exact file name of the PRIMARY font within the fonts/ directory below - always loaded first,
+// always with the restricted kUnicodeGlyphRanges above. Shipped by this plugin (native/fonts/).
+static const char *kPrimaryFontFileName = "NotoSans-Regular.ttf";
+
+// Exact file name of the one supported FALLBACK font. Deliberately a single hardcoded name, not a
+// scan of the fonts/ directory for arbitrary files - once the file is hardcoded, so is the correct
+// glyph range for it (kFallbackGlyphRanges above), instead of having to guess a range wide enough
+// for "whatever a player might drop in". Not shipped by this plugin - a player who wants Chinese/
+// Japanese/Korean chat text to render downloads Noto Sans CJK SC themselves and places it here
+// (see README.md's "Fonts for other scripts" section) - keeps this plugin's own download small.
+// ".otf", not ".ttf": confirmed the real file Google/Noto actually distributes for this (e.g.
+// notofonts/noto-cjk's own repo tree, Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf) is an
+// OTF container - AddFontFromFileTTF reads whichever real format is inside regardless of its own
+// name, but this exact-match check needs to be the real file name or it silently never matches.
+static const char *kFallbackFontFileName = "NotoSansCJKsc-Regular.otf";
+
+// The fonts/ directory ships in the SAME directory as this .hdll (hlx/plugins/imgui/fonts/, see
+// native/CMakeLists.txt's `install(FILES fonts/NotoSans-Regular.ttf DESTINATION fonts)`), NOT next
+// to the game's exe and NOT a hardcoded absolute path - so it must be resolved relative to this
+// DLL's own module handle, not GetModuleFileNameA(NULL, ...) (that gives the PROCESS exe's
+// directory; see imgui_theme.cpp's GetThemeConfigPath, which deliberately wants that instead, for
+// hlx/config/imgui/theme.conf). This plugin doesn't link hlx-boot, so there's no shared "find my
+// own directory" helper to reuse - this is a small self-contained local copy of that idea, same
+// convention already established elsewhere in this file (e.g. toStdStringUtf8 above).
+static bool GetFontsDirectory(char *outPath, size_t outPathSize) {
+	HMODULE hModule = nullptr;
+	// GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS resolves the module containing this very function's
+	// own code address - i.e. always this .hdll, regardless of which process/module called into
+	// it. The FLAG_FROM_ADDRESS variant still increments the module's refcount same as a normal
+	// GetModuleHandle, so it's paired with FreeLibrary below (safe: it's not truly unloading
+	// anything, this module's real refcount is already held elsewhere for as long as it's mapped).
+	if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+			(LPCSTR)&GetFontsDirectory, &hModule) || !hModule)
+		return false;
+
+	char path[MAX_PATH];
+	DWORD len = GetModuleFileNameA(hModule, path, MAX_PATH);
+	FreeLibrary(hModule);
+	if (len == 0 || len >= MAX_PATH) return false;
+
+	char *slash = strrchr(path, '\\');
+	if (slash) slash[1] = 0; else path[0] = 0;
+
+	if (strcpy_s(outPath, outPathSize, path) != 0) return false;
+	return strcat_s(outPath, outPathSize, "fonts\\") == 0;
+}
+
+// AddFontFromFileTTF's own size_pixels convention (no existing convention elsewhere in this
+// codebase to match - PanelTheme/imgui_theme.cpp only ever touch style metrics, never font size)
+// - 16.0f reads comfortably at typical UI scale without looking oversized against the rest of the
+// default-density theme this plugin already applies (see ApplyDefaultTheme's WindowPadding/
+// ItemSpacing et al, all sized for a similar visual scale). Fallback fonts share the same size so
+// their merged glyphs line up with the primary font's baseline/height.
+static const float kFontSizePixels = 16.0f;
+
+// Called from init() before Fonts->Build(), per AddFontFromFileTTF's own documented lifecycle
+// requirement. Loads kPrimaryFontFileName as the PRIMARY font (restricted kUnicodeGlyphRanges),
+// then attempts kFallbackFontFileName as a FALLBACK merged into the same logical ImFont
+// (ImFontConfig::MergeMode, imgui.h; kFallbackGlyphRanges) - not PushFont/PopFont switching,
+// genuine per-codepoint fallback within one font. No directory scan: both are exact, hardcoded
+// file names, checked by just trying to load them.
+//
+// Failure is handled by simply not adding that font: AddFontFromFileTTF degrades gracefully on a
+// missing/bad path (IM_ASSERT_USER_ERROR is a no-op assert() under Release/NDEBUG, and it still
+// returns nullptr either way) - if the fallback file isn't present (the common case; it's not
+// shipped by this plugin, see kFallbackFontFileName's own comment), CJK/etc. glyphs just aren't
+// available and the primary is unaffected. If the PRIMARY fails to load, the fallback attempt is
+// skipped too (early return below), and if NO font at all ends up loaded, ImFontAtlasBuildMain
+// (imgui_draw.cpp) unconditionally calls atlas->AddFontDefault() whenever atlas->Sources is still
+// empty at Build() time, so the net effect is exactly today's pre-existing behavior (ImGui's
+// built-in ASCII/Latin-1 default font) rather than a crash.
+static void LoadFonts() {
+	char fontsDir[MAX_PATH];
+	if (!GetFontsDirectory(fontsDir, MAX_PATH)) return;
+
+	char primaryPath[MAX_PATH];
+	if (strcpy_s(primaryPath, MAX_PATH, fontsDir) != 0) return;
+	if (strcat_s(primaryPath, MAX_PATH, kPrimaryFontFileName) != 0) return;
+
+	ImFont *primaryFont = ImGui::GetIO().Fonts->AddFontFromFileTTF(primaryPath, kFontSizePixels, nullptr, kUnicodeGlyphRanges);
+	if (!primaryFont) return;
+
+	char fallbackPath[MAX_PATH];
+	if (strcpy_s(fallbackPath, MAX_PATH, fontsDir) != 0) return;
+	if (strcat_s(fallbackPath, MAX_PATH, kFallbackFontFileName) != 0) return;
+
+	ImFontConfig fallbackConfig;
+	fallbackConfig.MergeMode = true;
+	ImGui::GetIO().Fonts->AddFontFromFileTTF(fallbackPath, kFontSizePixels, &fallbackConfig, kFallbackGlyphRanges);
+}
+
 HL_PRIM void HL_NAME(init)(ID3D12Device *device, int numFramesInFlight, int rtvFormat) {
 	if (g_contextInitialized) return;
 	g_contextInitialized = true;
@@ -218,6 +372,10 @@ HL_PRIM void HL_NAME(init)(ID3D12Device *device, int numFramesInFlight, int rtvF
 	// single owner for.
 	ImGui_ImplDX12_Init(device, numFramesInFlight, (DXGI_FORMAT)rtvFormat, g_srvHeap,
 		g_srvHeap->GetCPUDescriptorHandleForHeapStart(), g_srvHeap->GetGPUDescriptorHandleForHeapStart());
+
+	// Must run before Fonts->Build() below, per AddFontFromFileTTF's own documented lifecycle - see
+	// LoadFonts's own comment for the fallback behavior if this fails to find/load any font.
+	LoadFonts();
 
 	// Confirmed live (access violation inside ImGui::NewFrame, specifically
 	// UpdateFontsNewFrame -> GetDefaultFont's lazy ImFontAtlasBuildMain call): imgui.h's own Build()
@@ -559,7 +717,25 @@ HL_PRIM void HL_NAME(run_frame)(ID3D12GraphicsCommandList *cmdList) {
 	ImGui::NewFrame();
 
 	for (auto &entry : g_entries) {
-		hl_dyn_call(entry->draw, nullptr, 0);
+		// One mod's panel throwing an uncaught Haxe exception must never take every OTHER mod's
+		// panel down with it, nor skip this function's own cleanup below (Render()/
+		// RenderDrawData()/the g_frameOpenThisTick reset) - HL's exception mechanism is a
+		// longjmp-style unwind (hl_setup.throw_jump) that skips past this C++ frame entirely
+		// (no destructors, no fall-through to the code after this loop) and lands wherever the
+		// nearest Haxe try/catch up the call stack is - for the present() hook that's
+		// Dispatcher.dispatch's own try/catch (hlx-loader), several frames higher than this
+		// function. Left unguarded, that means g_frameOpenThisTick above never gets reset to
+		// false, permanently wedging run_frame() into a no-op (see its own check at the top of
+		// this function) - i.e. ImGui stops rendering for every mod, forever, for the rest of the
+		// session, the moment any ONE registered panel throws once. Mirrors hlx-boot's own
+		// call_closure (reflection.c) - the identical __try/__except around the identical
+		// hl_dyn_call, just not yet applied here too.
+		__try {
+			hl_dyn_call(entry->draw, nullptr, 0);
+		} __except (EXCEPTION_EXECUTE_HANDLER) {
+			// Swallow and move on: the throwing panel simply doesn't render this frame, every
+			// other panel and this function's own end-of-frame cleanup still run normally.
+		}
 	}
 
 	// ImGui::Render() triggers EndFrame() if it hasn't already run this frame, and EndFrame()
@@ -617,3 +793,100 @@ HL_PRIM int HL_NAME(ImGuiTableSortSpecs_GetSortDirection)(ImGuiTableSortSpecs *s
 	return (int)self->Specs[i].SortDirection;
 }
 DEFINE_PRIM(_I32, ImGuiTableSortSpecs_GetSortDirection, _ABSTRACT(ImGuiTableSortSpecs) _I32);
+
+// igInputText's real callback/user_data params are dropped by the codegen (generate.mts's
+// resolveBase has no HL type tag for a function-pointer arg), so ImGuiInputTextFlags_
+// CallbackCompletion (fired when the user presses Tab while the widget is active) can never reach
+// a Haxe closure through the generated igInputText binding - it's hardcoded to NULL, NULL there.
+//
+// The completion closure below is a plain Void->Void, deliberately not one taking or returning the
+// real ImGuiInputTextCallbackData* - hl_dyn_call's args/return are vdynamic*, and boxing a raw
+// pointer into one by hand means constructing an hl_type ourselves (hl_alloc_dynamic(t) + v.ptr,
+// same shape as hlx-boot/src/reflection.c's box_dynamic_ptr), which needs a real hl_type matching
+// whatever the Haxe side's hl.Abstract<"..."> compiles to - not the risk worth taking here when a
+// Void->Void closure (exactly register()'s panel-draw shape above, already proven live) sidesteps
+// it entirely. Whatever text the closure decides to complete to, it hands back through
+// setCompletionText() below instead - an ordinary native-bound vbyte* parameter, the same
+// well-proven marshaling every other @:hlNative(..., _BYTES) call in this file already uses.
+static char g_completionScratch[256];
+
+HL_PRIM void HL_NAME(setCompletionText)(vbyte *textUtf8) {
+	strcpy_s(g_completionScratch, sizeof(g_completionScratch), textUtf8 ? (const char *)textUtf8 : "");
+}
+DEFINE_PRIM(_VOID, setCompletionText, _BYTES);
+
+static int InputTextCompletionTrampoline(ImGuiInputTextCallbackData *data) {
+	vclosure *onCompletion = (vclosure *)data->UserData;
+	if (!onCompletion) return 0;
+
+	g_completionScratch[0] = 0;
+	__try {
+		hl_dyn_call(onCompletion, nullptr, 0);
+	} __except (EXCEPTION_EXECUTE_HANDLER) {
+		// Swallow, per run_frame's own established pattern - one mod's callback throwing must not
+		// take down text input for the whole window.
+		return 0;
+	}
+
+	size_t len = strlen(g_completionScratch);
+	if (len == 0) return 0;
+
+	data->DeleteChars(0, data->BufTextLen);
+	data->InsertChars(0, g_completionScratch, g_completionScratch + len);
+	return 0;
+}
+
+HL_PRIM bool HL_NAME(inputTextWithCompletion)(vbyte *label, vbyte *buf, int64 buf_size, int flags, vclosure *onCompletion) {
+	return (bool)ImGui::InputText((const char *)label, (char *)buf, (size_t)buf_size,
+		(ImGuiInputTextFlags)flags | ImGuiInputTextFlags_CallbackCompletion,
+		InputTextCompletionTrampoline, (void *)onCompletion);
+}
+DEFINE_PRIM(_BOOL, inputTextWithCompletion, _BYTES _BYTES _I64 _I32 _FUN(_VOID, _NO_ARG));
+
+// ImGuiListClipper's constructor/destructor are among the ~112 cimgui excludes
+// native/codegen/generate.mts's compileConstructorsAndDestructors deliberately skips (real
+// placement-new via IM_NEW, not a plain callable cimgui's JSON can express - same as every other
+// stateful cimgui type in this plugin, e.g. ImGuiTextFilter/ImDrawListSplitter, none of which have
+// a generated constructor either). Named to match cimgui's own ov_cimguiname for this pair
+// (ImGuiListClipper_ImGuiListClipper / ImGuiListClipper_destroy) rather than inventing new/delete
+// names, so it reads as "the constructor the generator would have produced" rather than a
+// different convention.
+HL_PRIM ImGuiListClipper *HL_NAME(ImGuiListClipper_ImGuiListClipper)() {
+	return IM_NEW(ImGuiListClipper)();
+}
+DEFINE_PRIM(_ABSTRACT(ImGuiListClipper), ImGuiListClipper_ImGuiListClipper, _NO_ARG);
+
+HL_PRIM void HL_NAME(ImGuiListClipper_destroy)(ImGuiListClipper *self) {
+	IM_DELETE(self);
+}
+DEFINE_PRIM(_VOID, ImGuiListClipper_destroy, _ABSTRACT(ImGuiListClipper));
+
+HL_PRIM int HL_NAME(ImGuiListClipper_get_DisplayStart)(ImGuiListClipper *self) {
+	return self->DisplayStart;
+}
+DEFINE_PRIM(_I32, ImGuiListClipper_get_DisplayStart, _ABSTRACT(ImGuiListClipper));
+
+HL_PRIM int HL_NAME(ImGuiListClipper_get_DisplayEnd)(ImGuiListClipper *self) {
+	return self->DisplayEnd;
+}
+DEFINE_PRIM(_I32, ImGuiListClipper_get_DisplayEnd, _ABSTRACT(ImGuiListClipper));
+
+HL_PRIM int HL_NAME(ImGuiListClipper_get_ItemsCount)(ImGuiListClipper *self) {
+	return self->ItemsCount;
+}
+DEFINE_PRIM(_I32, ImGuiListClipper_get_ItemsCount, _ABSTRACT(ImGuiListClipper));
+
+// WantCaptureMouse/WantCaptureKeyboard are plain ImGuiIO struct fields, not cimgui functions, so
+// the generator has nothing to bind them from - same hand-written-getter carve-out as
+// ImGuiListClipper's DisplayStart/DisplayEnd above. Not currently called by any mod (ChatPanel.hx
+// uses isAnyItemActive/isAnyItemFocused/isPopupOpen instead, since these two go true from mere
+// hover) - kept as general-purpose plugin API for whatever might want raw hover-capture state.
+HL_PRIM bool HL_NAME(ImGuiIO_get_WantCaptureMouse)(ImGuiIO *self) {
+	return self->WantCaptureMouse;
+}
+DEFINE_PRIM(_BOOL, ImGuiIO_get_WantCaptureMouse, _ABSTRACT(ImGuiIO));
+
+HL_PRIM bool HL_NAME(ImGuiIO_get_WantCaptureKeyboard)(ImGuiIO *self) {
+	return self->WantCaptureKeyboard;
+}
+DEFINE_PRIM(_BOOL, ImGuiIO_get_WantCaptureKeyboard, _ABSTRACT(ImGuiIO));

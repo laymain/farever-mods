@@ -51,3 +51,4 @@ jobs:
           category: main
           archive_existing_version: true
           update_mod_version: true
+          primary_mod_manager_download: true

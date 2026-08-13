@@ -28,9 +28,11 @@
 //                                                 files' own header comment already signals "don't
 //                                                 hand-edit" on its own)
 //
-// Anything this generator can't safely express (variadic ..., va_list, raw callback pointers with
-// no usable default, double pointers, templated/container types) is skipped and reported in the
-// summary printed at the end - see SkipReason below.
+// Printf-style variadic (`fmt, ...`) functions get bound via the standard "%s"-forwarding trick
+// instead of being skipped outright - see VARARG_TRICK_SKIP and the isvararg branch below. Anything
+// else this generator can't safely express (va_list, raw callback pointers with no usable default,
+// double pointers, templated/container types) is skipped and reported in the summary printed at the
+// end - see SkipReason below.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -365,12 +367,27 @@ interface BoundFunc {
   args: BoundArg[]
   ret: Resolved
   outParam?: Resolved // set when nonUDT return -> appended out-pointer arg instead of a real return
+  // Set for a printf-style variadic function bound via the "%s" trick (see VARARG_TRICK_SKIP and
+  // the isvararg branch below): the real call gets a hardcoded literal "%s" spliced in immediately
+  // before variadicTextArgName's own argument, turning `fmt, ...` into a single already-formatted
+  // string - the standard technique non-variadic-capable ImGui bindings (imgui-rs, ...) all use,
+  // since Haxe already does its own string interpolation before ever reaching this call.
+  variadicStringTrick?: boolean
+  variadicTextArgName?: string // cimgui's own arg name (always "fmt") - renamed to "text" in the public dispatcher, see compileDispatcher
 }
 
 // See this set's own usage below (in the function-selection loop) for why each entry is here -
 // confirmed by a real MSVC build, not guessed; re-check against a fresh build after bumping the
 // vendored ImGui/cimgui version in case cimgui's own declarations change.
 const MANUAL_SKIP = new Set(['ImDrawList_AddText_FontPtr', 'ImFont_RenderChar'])
+
+// igText's public Haxe name is already claimed by a hand-written alias to the non-variadic
+// TextUnformatted (see text() in ImGui.hx) - a genuinely better binding for "render this string"
+// than the "%s" trick below, since it never re-parses the string as a printf format at all. Letting
+// igText through the trick anyway would only produce a dead, uncallable private extern (its public
+// dispatcher name always loses to the hand-written one - see generatedMethodLines' handWrittenNames
+// check), so it's excluded up front instead of silently wasted.
+const VARARG_TRICK_SKIP = new Set(['igText'])
 
 // Bare `T*` args that are semantically arrays, not the genuine single-scalar in/out values
 // resolveBase's default 'ref' handling assumes for any pointer-to-primitive - it can't tell the
@@ -410,9 +427,33 @@ for (const overloads of Object.values(definitions)) {
     const isFreeFunction = def.namespace === 'ImGui'
     const isBoundStructMethod = def.namespace === def.stname && structsAndEnums.nonPOD[def.namespace]
     if (!isFreeFunction && !isBoundStructMethod) continue
+    // Printf-style variadic (`fmt, ...`) - cimgui's own JSON always trails the fixed args with a
+    // literal {name: '...', type: '...'} sentinel entry, immediately after the real fmt string arg
+    // (the C variadic ABI requires the format arg to sit right before '...' for a call to make any
+    // sense). No HL/Haxe calling convention can express genuine C varargs, but since Haxe already
+    // does its own string interpolation before ever calling into ImGui, the fmt arg is almost
+    // always really just "the one already-formatted string to print" - so instead of losing the
+    // function entirely, drop the sentinel and bind against the fixed args as normal; cppLines'
+    // emitOne (variadicStringTrick) hardcodes a literal "%s" into the real call immediately before
+    // that string, making it the vararg's one argument. See VARARG_TRICK_SKIP for the one function
+    // this doesn't apply to.
+    let variadicStringTrick = false
+    let variadicTextArgName: string | undefined
+    let effectiveArgsT = def.argsT
     if (def.isvararg) {
-      skipped.push({ name: def.ov_cimguiname, reason: 'variadic (...)' })
-      continue
+      const last = def.argsT[def.argsT.length - 1]
+      const fmtArg = def.argsT[def.argsT.length - 2]
+      const canApplyTrick = !VARARG_TRICK_SKIP.has(def.ov_cimguiname) && last?.name === '...' && last.type === '...' && fmtArg !== undefined
+      if (!canApplyTrick) {
+        skipped.push({
+          name: def.ov_cimguiname,
+          reason: VARARG_TRICK_SKIP.has(def.ov_cimguiname) ? 'variadic (...) - superseded by hand-written text()' : 'variadic (...)',
+        })
+        continue
+      }
+      variadicStringTrick = true
+      variadicTextArgName = fmtArg.name
+      effectiveArgsT = def.argsT.slice(0, -1)
     }
     // Methods on a generic template (ImVector<T>, ImChunkStream<T>, ImPool<T>, ...) - cimgui's own
     // JSON flags these `templated: true`, and for good reason: "ImVector_clear"/"ImVector_capacity"/
@@ -446,7 +487,7 @@ for (const overloads of Object.values(definitions)) {
 
     const args: BoundArg[] = []
     let dropped = false
-    for (const a of def.argsT) {
+    for (const a of effectiveArgsT) {
       let resolved = resolveBase(a.type)
       if (resolved.kind === 'ref' && FORCE_BYTES_ARGS.has(`${def.ov_cimguiname}.${a.name}`)) resolved = { kind: 'bytes' }
       if (resolved.kind === 'unsupported') {
@@ -483,7 +524,7 @@ for (const overloads of Object.values(definitions)) {
       finalRet = { kind: 'prim', prim: 'void' }
     }
 
-    bound.push({ def, args, ret: finalRet, outParam })
+    bound.push({ def, args, ret: finalRet, outParam, variadicStringTrick, variadicTextArgName })
   }
 }
 
@@ -778,7 +819,9 @@ function compileDispatcher(f: BoundFunc, usedImplNames: Set<string>): CompiledDi
     // cimgui's own Hungarian-notation "p_" prefix on ref/out params (p_open, p_visible, p_selected,
     // ...) reads awkwardly once it's a real Ref wrapper rather than a raw pointer - drop it.
     const isRefRoute = arg.resolved.kind === 'bytes' && origResolved.kind === 'ref'
-    const exposedName = renameTo.get(arg.name) ?? arg.name
+    // cimgui names the "%s" trick's real arg "fmt" (it used to genuinely be a printf format) -
+    // "text" reads honestly for what it now actually is: one already-formatted string.
+    const exposedName = f.variadicStringTrick && arg.name === f.variadicTextArgName ? 'text' : (renameTo.get(arg.name) ?? arg.name)
     const strippedName = isRefRoute && exposedName.startsWith('p_') ? exposedName.slice(2) : exposedName
     const hxName = hxParamName(toCamelCase(strippedName))
 
@@ -890,6 +933,11 @@ function cppLines(): string[] {
     const boundArgsByName = new Map(args.map((a) => [a.name, a]))
     const fullCallArgs: string[] = []
     for (const a of d.argsT) {
+      // The "%s" trick (see the isvararg branch in the function-selection loop above): the real
+      // vararg's one argument is the caller's already-formatted string, so a literal "%s" format
+      // goes immediately before it - everything past this point in d.argsT is just the '...'
+      // sentinel itself, which contributes nothing (not in boundArgsByName, not in d.defaults).
+      if (f.variadicStringTrick && a.name === f.variadicTextArgName) fullCallArgs.push('"%s"')
       const arg = boundArgsByName.get(a.name)
       if (arg) fullCallArgs.push(callExpr(arg.name, arg.resolved, a.type))
       else if (a.name in d.defaults) fullCallArgs.push(d.defaults[a.name])
@@ -1160,7 +1208,12 @@ function structsHxLines(): string[] {
     for (const field of fields) {
       lines.push(`\tpublic var ${field.name}:${PRIM_HX_TYPE[field.prim]};`)
     }
-    lines.push('\tpublic function new() {}')
+    const params = fields.map((f) => `${f.name}:${PRIM_HX_TYPE[f.prim]} = 0`).join(', ')
+    lines.push(`\tpublic function new(${params}) {`)
+    for (const field of fields) {
+      lines.push(`\t\tthis.${field.name} = ${field.name};`)
+    }
+    lines.push('\t}')
     lines.push('}')
     lines.push('')
   }

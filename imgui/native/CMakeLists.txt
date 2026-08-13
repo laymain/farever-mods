@@ -71,3 +71,12 @@ target_link_libraries(imgui.hdll PRIVATE
 # alongside the .hdll is a link-time-only artifact nothing downstream needs (hlx-boot loads the
 # .hdll itself), so leaving it unlisted keeps it out of the staged plugins/ dir and dist/*.zip.
 install(TARGETS imgui.hdll RUNTIME DESTINATION .)
+
+# Bundled Unicode font (Latin+Latin Extended+Greek+Cyrillic, see imgui_native.cpp's LoadFonts()) -
+# lands in a fonts/ subdirectory next to imgui64.hdll (hlx/plugins/imgui/fonts/), since LoadFonts()
+# resolves it relative to this DLL's own module path at runtime, not the process exe's directory.
+# This is deliberately a dedicated, discoverable folder rather than the plugin root: a player who
+# needs another script (e.g. Japanese/Chinese/Korean) can drop their own *.ttf/*.otf file in
+# alongside NotoSans-Regular.ttf and LoadFonts() will merge it in automatically as a fallback - see
+# LoadFonts()'s own comment and README.md.
+install(FILES fonts/NotoSans-Regular.ttf DESTINATION fonts)

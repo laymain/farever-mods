@@ -33,7 +33,7 @@ for (const mod of mods) {
     const modDest = path.join(modsDir, mod)
     fs.mkdirSync(modDest, { recursive: true })
     for (const file of fs.readdirSync(stagedMod)) {
-      fs.copyFileSync(path.join(stagedMod, file), path.join(modDest, file))
+      fs.cpSync(path.join(stagedMod, file), path.join(modDest, file), { recursive: true })
     }
     console.log(`${mod}.hl -> ${modDest}`)
   }
@@ -47,7 +47,7 @@ for (const mod of mods) {
     fs.mkdirSync(modPluginsDest, { recursive: true })
     for (const file of fs.readdirSync(stagedPlugins)) {
       const target = path.join(modPluginsDest, file)
-      fs.copyFileSync(path.join(stagedPlugins, file), target)
+      fs.cpSync(path.join(stagedPlugins, file), target, { recursive: true })
       console.log(`${file} -> ${target}`)
     }
   }

@@ -770,6 +770,11 @@ HL_PRIM void HL_NAME(ImGuiTextBuffer_append)(ImGuiTextBuffer* self, vbyte* str, 
 }
 DEFINE_PRIM(_VOID, ImGuiTextBuffer_append, _ABSTRACT(ImGuiTextBuffer) _BYTES _BYTES);
 
+HL_PRIM void HL_NAME(ImGuiTextBuffer_appendf)(ImGuiTextBuffer* self, vbyte* fmt) {
+	ImGuiTextBuffer_appendf(self, "%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, ImGuiTextBuffer_appendf, _ABSTRACT(ImGuiTextBuffer) _BYTES);
+
 HL_PRIM vbyte* HL_NAME(ImGuiTextBuffer_begin)(ImGuiTextBuffer* self) {
 	return (vbyte*)ImGuiTextBuffer_begin(self);
 }
@@ -1020,6 +1025,11 @@ HL_PRIM void HL_NAME(igBullet)(void) {
 }
 DEFINE_PRIM(_VOID, igBullet, _NO_ARG);
 
+HL_PRIM void HL_NAME(igBulletText)(vbyte* fmt) {
+	igBulletText("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igBulletText, _BYTES);
+
 HL_PRIM bool HL_NAME(igButton)(vbyte* label, ImVec2_c* size) {
 	return (bool)igButton((char*)label, *size);
 }
@@ -1169,6 +1179,11 @@ HL_PRIM void HL_NAME(igDebugFlashStyleColor)(int idx) {
 	igDebugFlashStyleColor((ImGuiCol)idx);
 }
 DEFINE_PRIM(_VOID, igDebugFlashStyleColor, _I32);
+
+HL_PRIM void HL_NAME(igDebugLog)(vbyte* fmt) {
+	igDebugLog("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igDebugLog, _BYTES);
 
 HL_PRIM void HL_NAME(igDebugStartItemPicker)(void) {
 	igDebugStartItemPicker();
@@ -1910,6 +1925,11 @@ HL_PRIM bool HL_NAME(igIsWindowHovered)(int flags) {
 }
 DEFINE_PRIM(_BOOL, igIsWindowHovered, _I32);
 
+HL_PRIM void HL_NAME(igLabelText)(vbyte* label, vbyte* fmt) {
+	igLabelText((char*)label, "%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igLabelText, _BYTES _BYTES);
+
 HL_PRIM void HL_NAME(igLoadIniSettingsFromDisk)(vbyte* ini_filename) {
 	igLoadIniSettingsFromDisk((char*)ini_filename);
 }
@@ -1929,6 +1949,11 @@ HL_PRIM void HL_NAME(igLogFinish)(void) {
 	igLogFinish();
 }
 DEFINE_PRIM(_VOID, igLogFinish, _NO_ARG);
+
+HL_PRIM void HL_NAME(igLogText)(vbyte* fmt) {
+	igLogText("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igLogText, _BYTES);
 
 HL_PRIM void HL_NAME(igLogToClipboard)(int auto_open_depth) {
 	igLogToClipboard((int)auto_open_depth);
@@ -2235,6 +2260,11 @@ HL_PRIM bool HL_NAME(igSetItemKeyOwner_Nil)(int key) {
 }
 DEFINE_PRIM(_BOOL, igSetItemKeyOwner_Nil, _I32);
 
+HL_PRIM void HL_NAME(igSetItemTooltip)(vbyte* fmt) {
+	igSetItemTooltip("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igSetItemTooltip, _BYTES);
+
 HL_PRIM void HL_NAME(igSetKeyboardFocusHere)(int offset) {
 	igSetKeyboardFocusHere((int)offset);
 }
@@ -2364,6 +2394,11 @@ HL_PRIM void HL_NAME(igSetTabItemClosed)(vbyte* tab_or_docked_window_label) {
 	igSetTabItemClosed((char*)tab_or_docked_window_label);
 }
 DEFINE_PRIM(_VOID, igSetTabItemClosed, _BYTES);
+
+HL_PRIM void HL_NAME(igSetTooltip)(vbyte* fmt) {
+	igSetTooltip("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igSetTooltip, _BYTES);
 
 HL_PRIM void HL_NAME(igSetWindowCollapsed_Bool)(bool collapsed, int cond) {
 	igSetWindowCollapsed_Bool((bool)collapsed, (ImGuiCond)cond);
@@ -2655,6 +2690,16 @@ HL_PRIM void HL_NAME(igTableSetupScrollFreeze)(int cols, int rows) {
 }
 DEFINE_PRIM(_VOID, igTableSetupScrollFreeze, _I32 _I32);
 
+HL_PRIM void HL_NAME(igTextColored)(ImVec4_c* col, vbyte* fmt) {
+	igTextColored(*col, "%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igTextColored, _STRUCT _BYTES);
+
+HL_PRIM void HL_NAME(igTextDisabled)(vbyte* fmt) {
+	igTextDisabled("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igTextDisabled, _BYTES);
+
 HL_PRIM bool HL_NAME(igTextLink)(vbyte* label) {
 	return (bool)igTextLink((char*)label);
 }
@@ -2670,15 +2715,30 @@ HL_PRIM void HL_NAME(igTextUnformatted)(vbyte* text, vbyte* text_end) {
 }
 DEFINE_PRIM(_VOID, igTextUnformatted, _BYTES _BYTES);
 
+HL_PRIM void HL_NAME(igTextWrapped)(vbyte* fmt) {
+	igTextWrapped("%s", (char*)fmt);
+}
+DEFINE_PRIM(_VOID, igTextWrapped, _BYTES);
+
 HL_PRIM bool HL_NAME(igTreeNode_Str)(vbyte* label) {
 	return (bool)igTreeNode_Str((char*)label);
 }
 DEFINE_PRIM(_BOOL, igTreeNode_Str, _BYTES);
 
+HL_PRIM bool HL_NAME(igTreeNode_StrStr)(vbyte* str_id, vbyte* fmt) {
+	return (bool)igTreeNode_StrStr((char*)str_id, "%s", (char*)fmt);
+}
+DEFINE_PRIM(_BOOL, igTreeNode_StrStr, _BYTES _BYTES);
+
 HL_PRIM bool HL_NAME(igTreeNodeEx_Str)(vbyte* label, int flags) {
 	return (bool)igTreeNodeEx_Str((char*)label, (ImGuiTreeNodeFlags)flags);
 }
 DEFINE_PRIM(_BOOL, igTreeNodeEx_Str, _BYTES _I32);
+
+HL_PRIM bool HL_NAME(igTreeNodeEx_StrStr)(vbyte* str_id, int flags, vbyte* fmt) {
+	return (bool)igTreeNodeEx_StrStr((char*)str_id, (ImGuiTreeNodeFlags)flags, "%s", (char*)fmt);
+}
+DEFINE_PRIM(_BOOL, igTreeNodeEx_StrStr, _BYTES _I32 _BYTES);
 
 HL_PRIM bool HL_NAME(igTreeNodeGetOpen)(int storage_id) {
 	return (bool)igTreeNodeGetOpen((ImGuiID)storage_id);

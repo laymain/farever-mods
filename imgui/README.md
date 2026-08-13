@@ -70,6 +70,20 @@ Every ImGui widget is a static function on `imgui.ImGui` (`ImGui.button(...)`,
 rundown - value refs (`imgui.ref.BoolRef`/`FloatRef`/...) for widgets that need to persist state
 across frames, multi-component vectors, and everything else the demo mod exercises.
 
+## Fonts for other scripts (Japanese/Chinese/Korean/...)
+
+The plugin ships one bundled font (`NotoSans-Regular.ttf`, SIL-OFL licensed) covering Latin, Greek,
+and Cyrillic - not CJK, so we're never responsible for shipping or licensing those much larger
+font assets ourselves. If you want Chinese/Japanese/Korean chat text to render instead of showing
+as missing-glyph boxes, download **Noto Sans CJK SC** yourself
+([`NotoSansCJKsc-Regular.otf`](https://github.com/notofonts/noto-cjk/raw/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf),
+SIL-OFL licensed) and place it - with that exact file name - in `hlx/plugins/imgui/fonts/` (next to
+`NotoSans-Regular.ttf`). It's picked up automatically on next launch and merged in as a fallback -
+no mod update needed, just relaunch the game once after adding the file. This one specific font
+covers Chinese, Japanese, and Korean glyphs together (Noto's CJK variants all ship the same
+pan-CJK repertoire, differing only in default glyph shape preferences) - any other file name is
+not recognized.
+
 ## Repository layout
 
 - `native/third_party/imgui`, `native/third_party/cimgui` - vendored sources. See
