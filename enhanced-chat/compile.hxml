@@ -1,0 +1,8 @@
+-lib farever-gamelib
+-lib hlx-runtime
+-lib hl-imgui
+-D hl-ver=1.16.0
+-cp src
+-main echat.EnhancedChatMod
+-dce full
+-hl build/enhanced-chat/enhanced-chat.hl
