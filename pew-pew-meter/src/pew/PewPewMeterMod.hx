@@ -3,6 +3,8 @@ package pew;
 import ent.Unit;
 import st.skill.DamageResult;
 import imgui.ImGui;
+import hlx.runtime.Registry;
+import hlx.runtime.Bus;
 import pew.tracking.DpsTracker;
 import pew.panel.MeterPanel;
 import pew.panel.MeterPanel.MeterPanelState;
@@ -18,7 +20,7 @@ typedef PewPewMeterConfig = {
 class PewPewMeterMod {
 	@:hlx.config
 	public static var config(default, null):PewPewMeterConfig = {
-		meterPanelState: {x: 16, y: 16, width: 400, height: 45, collapsed: false},
+		meterPanelState: {x: 16, y: 16, width: 400, height: 45, collapsed: false, opened: true},
 		detailPanelState: {x: 440, y: 16, opened: false, collapsed: false}
 	};
 
@@ -41,6 +43,14 @@ class PewPewMeterMod {
 			panel.draw();
 			detailPanel.draw();
 		});
+		Registry.register("mods", "pew-pew-meter", {
+			name: "Pew Pew Meter",
+			description: "DPS meter and combat log breakdown.",
+			commands: [
+				{name: "dps", description: "Opens the Pew Pew Meter window."}
+			]
+		});
+		Bus.subscribe("command.execute.dps", _ -> panel.open());
 	}
 
 	@:hlx.postfix(GameApp.update)

@@ -9,6 +9,7 @@ import imgui.Enums.ImGuiTableFlags;
 import imgui.Enums.ImGuiTableColumnFlags;
 import imgui.Enums.ImGuiTableRowFlags;
 import imgui.Enums.ImGuiWindowFlags;
+import imgui.ref.BoolRef;
 import pew.panel.IconCache.Icon;
 import pew.tracking.Encounter;
 import pew.roster.Combatant;
@@ -19,6 +20,7 @@ typedef MeterPanelState = {
 	var width:Int;
 	var height:Int;
 	var collapsed:Bool;
+	var opened:Bool;
 }
 
 typedef MeterRowData = {
@@ -39,12 +41,13 @@ class MeterPanel {
 	public var onOpenDetail:String->Void;
 
 	var state:MeterPanelState;
-	// rows/skillRowsByName are rebuilt from scratch every refresh() - never cache a MeterRowData across frames.
+	var isOpen:BoolRef;
 	var rows:Array<MeterRowData> = [];
 	var skillRowsByName = new Map<String, Array<MeterRowData>>();
 
 	public function new(state:MeterPanelState) {
 		this.state = state;
+		isOpen = new BoolRef(state.opened);
 	}
 
 	public function refresh(encounter:Encounter, active:Array<Combatant>, elapsed:Float):Void {
@@ -95,7 +98,13 @@ class MeterPanel {
 		return skillRows;
 	}
 
+	public function open():Void {
+		isOpen.set(true);
+	}
+
 	public function draw():Void {
+		if (!isOpen.get()) return;
+
 		var game = GameApp.get();
 		if (game == null) return;
 
@@ -105,7 +114,7 @@ class MeterPanel {
 
 		// NoInputs while the cursor is hidden for camera control, so the meter doesn't steal gameplay clicks.
 		var flags = game.isCursorFree() ? 0 : ImGuiWindowFlags.NoInputs;
-		if (ImGui.begin("Pew Pew Meter", null, flags)) {
+		if (ImGui.begin("Pew Pew Meter", isOpen, flags)) {
 			if (ImGui.beginPopupContextItem("PewPewMeterTitleContext", ImGuiPopupFlags.MouseButtonRight)) {
 				if (ImGui.menuItem("Reset")) {
 					pew.tracking.DpsTracker.instance.manualReset();
@@ -201,7 +210,7 @@ class MeterPanel {
 		ImGui.tableNextColumn();
 		ImGui.text('${row.hits}/${row.crits}');
 		ImGui.tableNextColumn();
-		if (showProgressBar) ImGui.progressBar(row.share, ImGui.vec2(-1, ImGui.getFrameHeight() / 2), '${Math.round(row.pct)}%');
+		if (showProgressBar) ImGui.progressBar(row.share, ImGui.vec2(-1, ImGui.getFrameHeight() / 1.25), '${Math.round(row.pct)}%');
 	}
 
 	public function findRowByName(name:String):MeterRowData {
@@ -246,12 +255,14 @@ class MeterPanel {
 			width: Std.int(size.x),
 			height: Std.int(size.y),
 			collapsed: ImGui.isWindowCollapsed(),
+			opened: isOpen.get(),
 		};
 		if (next.x == state.x
 			&& next.y == state.y
 			&& next.width == state.width
 			&& next.height == state.height
-			&& next.collapsed == state.collapsed)
+			&& next.collapsed == state.collapsed
+			&& next.opened == state.opened)
 			return;
 
 		state = next;
