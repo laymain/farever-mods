@@ -13,6 +13,7 @@ import imgui.Enums.ImGuiTabItemFlags;
 import imgui.Enums.ImGuiMouseButton;
 import imgui.Enums.ImGuiChildFlags;
 import imgui.Enums.ImGuiFocusedFlags;
+import imgui.Enums.ImGuiKey;
 import imgui.ref.IntRef;
 import imgui.ref.BoolRef;
 import imgui.Structs.ImVec4;
@@ -605,6 +606,7 @@ class ChatPanel {
 			focusRequested = false;
 			ImGui.setKeyboardFocusHere();
 		}
+		var wasTyping = inputFocused;
 		var submitted = ImGui.inputTextWithCompletion("##ChatInput", inputBuf, INPUT_BUF_SIZE, ImGuiInputTextFlags.EnterReturnsTrue, () -> {
 			if (matches.length > 0)
 				ImGui.setCompletionText("!" + matches[0] + " ");
@@ -623,8 +625,13 @@ class ChatPanel {
 					onSend(text, channelOptions[channelIndex.get()].channel);
 				}
 			}
+			ImGui.setWindowFocus(null);
+			inputFocused = false;
 			return;
 		}
+
+		if (wasTyping && ImGui.isKeyPressed(ImGuiKey.Escape, false))
+			ImGui.setWindowFocus(null);
 
 		if (matches.length > 0)
 			drawSuggestionsAbove(matches);
