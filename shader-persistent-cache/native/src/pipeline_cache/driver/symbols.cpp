@@ -105,6 +105,13 @@ Fn_get_timestamp_frequency GReal_get_timestamp_frequency = NULL;
 Fn_get_driver_version GReal_get_driver_version = NULL;
 Fn_query_video_memory_info GReal_query_video_memory_info = NULL;
 Fn_set_gpu_crash_handler GReal_set_gpu_crash_handler = NULL;
+Fn_get_factory GReal_get_factory = NULL;
+Fn_set_factory GReal_set_factory = NULL;
+Fn_set_device GReal_set_device = NULL;
+Fn_command_queue_get_timestamp_frequency GReal_command_queue_get_timestamp_frequency = NULL;
+Fn_command_queue_present GReal_command_queue_present = NULL;
+Fn_command_queue_resume GReal_command_queue_resume = NULL;
+Fn_command_queue_suspend GReal_command_queue_suspend = NULL;
 
 struct NativeForward {
 	const char *name;
@@ -211,12 +218,19 @@ static NativeForward GForwardTable[] = {
 	{ "get_driver_version", (void **)&GReal_get_driver_version },
 	{ "query_video_memory_info", (void **)&GReal_query_video_memory_info },
 	{ "set_gpu_crash_handler", (void **)&GReal_set_gpu_crash_handler },
+	{ "get_factory", (void **)&GReal_get_factory },
+	{ "set_factory", (void **)&GReal_set_factory },
+	{ "set_device", (void **)&GReal_set_device },
+	{ "command_queue_get_timestamp_frequency", (void **)&GReal_command_queue_get_timestamp_frequency },
+	{ "command_queue_present", (void **)&GReal_command_queue_present },
+	{ "command_queue_resume", (void **)&GReal_command_queue_resume },
+	{ "command_queue_suspend", (void **)&GReal_command_queue_suspend },
 };
 
 static HMODULE GImplModule = NULL;
 
 // GetProcAddress's real return type (FARPROC) and each GReal_<name> global have different
-// C++ types by construction (one per real native's own signature) - this resolves all 98
+// C++ types by construction (one per real native's own signature) - this resolves all 106
 // through one generic loop via the same void** trick shadercache.cpp and ordinary Win32
 // GetProcAddress-table code both already rely on (function pointers and data pointers share
 // representation on this platform/ABI; MSVC/x64 only, matching this whole project's own

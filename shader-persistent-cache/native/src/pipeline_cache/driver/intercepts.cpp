@@ -5,7 +5,7 @@
 #include "symbols.h"
 #include "../log.h"
 
-// The 4 natives with real cache-integration logic, as opposed to forwarding.cpp's 94 plain
+// The 5 natives with real cache-integration logic, as opposed to forwarding.cpp's 101 plain
 // forwards.
 
 // NATIVE.md Section 7: "forward-and-observe, not a full custom implementation" - calls through to
@@ -25,6 +25,17 @@ HL_PRIM dx_device HL_NAME(get_device)() {
 }
 
 DEFINE_PRIM(_DEVICE, get_device, _NO_ARG);
+
+HL_PRIM void HL_NAME(set_device)(dx_device a0) {
+	if (GReal_set_device) GReal_set_device(a0);
+	if (a0 && !GCapturedDevice) {
+		GCapturedDevice = a0;
+		Dx12ShadowLog("dx12_proxy", "set_device: captured real ID3D12Device* = %p", a0);
+		Dx12PsoCache_OnDeviceCaptured(a0, GProxySelfDir);
+	}
+}
+
+DEFINE_PRIM(_VOID, set_device, _DEVICE);
 
 // Intercepted (not a plain forward) so the PSO cache key can hash root signatures by CONTENT -
 // see hash.h's own comment on pRootSignature for why.

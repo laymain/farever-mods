@@ -4,10 +4,10 @@
 #include "../log.h"
 
 // ---- Forwarding exports (Section 7) ----
-// The 95 dx12 natives with no cache-integration logic: each just forwards straight through to
+// The 101 dx12 natives with no cache-integration logic: each just forwards straight through to
 // dx12_original.hdll's own real implementation. get_device, rootsignature_create,
-// create_graphics_pipeline_state and create_compute_pipeline_state are the 4 exceptions - see
-// intercepts.cpp.
+// create_graphics_pipeline_state, create_compute_pipeline_state and set_device are the 5
+// exceptions - see intercepts.cpp.
 
 HL_PRIM void HL_NAME(resource_release)(dx_resource a0) {
 	if (GReal_resource_release) GReal_resource_release(a0);
@@ -510,7 +510,20 @@ HL_PRIM void HL_NAME(resize)(int a0, int a1, int a2, int a3) {
 	if (GReal_resize) GReal_resize(a0, a1, a2, a3);
 }
 
-DEFINE_PRIM(_VOID, resize, _I32 _I32 _I32 _I32);
+typedef void (*Fn_resize_new)(dx_resource, int, int, int, int);
+
+static void ResizeNew(dx_resource a0, int a1, int a2, int a3, int a4) {
+	if (GReal_resize) ((Fn_resize_new)(void *)GReal_resize)(a0, a1, a2, a3, a4);
+}
+
+HL_PRIM void *hlp_resize(const char **sign) {
+	if (GReal_get_factory) {
+		*sign = _FUN(_VOID, _RESOURCE _I32 _I32 _I32 _I32);
+		return (void *)&ResizeNew;
+	}
+	*sign = _FUN(_VOID, _I32 _I32 _I32 _I32);
+	return (void *)&HL_NAME(resize);
+}
 
 HL_PRIM bool HL_NAME(update_sub_resource)(dx_resource a0, dx_resource a1, dx_resource a2, int64 a3, int a4, int a5, void * a6) {
 	if (GReal_update_sub_resource) return GReal_update_sub_resource(a0, a1, a2, a3, a4, a5, a6);
@@ -609,3 +622,41 @@ HL_PRIM void HL_NAME(set_gpu_crash_handler)(vclosure * a0) {
 }
 
 DEFINE_PRIM(_VOID, set_gpu_crash_handler, _FUN(_VOID, _BYTES _BYTES _I32 _BOOL));
+
+HL_PRIM dx_factory HL_NAME(get_factory)() {
+	if (GReal_get_factory) return GReal_get_factory();
+	return NULL;
+}
+
+DEFINE_PRIM(_FACTORY, get_factory, _NO_ARG);
+
+HL_PRIM void HL_NAME(set_factory)(dx_factory a0) {
+	if (GReal_set_factory) GReal_set_factory(a0);
+}
+
+DEFINE_PRIM(_VOID, set_factory, _FACTORY);
+
+HL_PRIM int64 HL_NAME(command_queue_get_timestamp_frequency)(dx_resource a0) {
+	if (GReal_command_queue_get_timestamp_frequency) return GReal_command_queue_get_timestamp_frequency(a0);
+	return 0;
+}
+
+DEFINE_PRIM(_I64, command_queue_get_timestamp_frequency, _RESOURCE);
+
+HL_PRIM void HL_NAME(command_queue_present)(dx_resource a0, bool a1) {
+	if (GReal_command_queue_present) GReal_command_queue_present(a0, a1);
+}
+
+DEFINE_PRIM(_VOID, command_queue_present, _RESOURCE _BOOL);
+
+HL_PRIM void HL_NAME(command_queue_resume)(dx_resource a0) {
+	if (GReal_command_queue_resume) GReal_command_queue_resume(a0);
+}
+
+DEFINE_PRIM(_VOID, command_queue_resume, _RESOURCE);
+
+HL_PRIM void HL_NAME(command_queue_suspend)(dx_resource a0) {
+	if (GReal_command_queue_suspend) GReal_command_queue_suspend(a0);
+}
+
+DEFINE_PRIM(_VOID, command_queue_suspend, _RESOURCE);
