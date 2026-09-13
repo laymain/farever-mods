@@ -21,7 +21,7 @@ typedef EnhancedChatConfig = {
 class EnhancedChatMod {
 	@:hlx.config
 	public static var config(default, null):EnhancedChatConfig = {
-		chatPanelState: {x: 16, y: 400, width: 480, height: 260, collapsed: false},
+		chatPanelState: {x: 16, y: 400, width: 480, height: 260, collapsed: false, fontSize: 15},
 		tabs: [{id: "default", name: "All", categories: ["Chat_Local", "Chat_All", "Chat_System", "Chat_Group"]}],
 		activeTabId: "default",
 		openDMsInNewTab: true,

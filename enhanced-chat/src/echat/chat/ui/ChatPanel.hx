@@ -31,6 +31,7 @@ typedef ChatPanelState = {
 	var width:Int;
 	var height:Int;
 	var collapsed:Bool;
+	var fontSize:Int;
 }
 
 private typedef TabView = {
@@ -53,6 +54,8 @@ class ChatPanel {
 	static inline final INPUT_BUF_SIZE = 256;
 	static inline final RENAME_BUF_SIZE = 64;
 	static inline final MAX_SUGGESTIONS = 5;
+	static inline final MIN_FONT_SIZE = 10;
+	static inline final MAX_FONT_SIZE = 32;
 
 	static var inputFocused = false;
 	static var mouseCaptured = false;
@@ -62,6 +65,7 @@ class ChatPanel {
 	static var timeColWidth = -1.0;
 	static var channelColWidth = -1.0;
 	static var senderColWidth = -1.0;
+	static var colWidthFontSize = -1;
 
 	static final CATEGORIES:Array<{key:String, label:String}> = [
 		{key: "Chat_Local", label: "Local"},
@@ -97,6 +101,7 @@ class ChatPanel {
 	var configuringTabId:String;
 	var categoryWorking:Map<String, BoolRef> = new Map();
 	var openDMsRef = new BoolRef();
+	var fontSizeRef = new IntRef();
 	var ignoredPlayers:Array<IgnoredPlayer>;
 
 	var pendingRenameTabId:String;
@@ -220,6 +225,7 @@ class ChatPanel {
 		panelActive = chatJustFocused || (game.isCursorFree() && windowFocused);
 		chatJustFocused = false;
 		if (open) {
+			ImGui.pushFont(null, state.fontSize);
 			var views = buildTabViews();
 			drawTabBar(views);
 			var active = activeView(views);
@@ -227,6 +233,7 @@ class ChatPanel {
 			drawContent(active);
 			drawModals();
 			mouseCaptured = ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows);
+			ImGui.popFont();
 		}
 		reportState();
 		ImGui.end();
@@ -445,6 +452,14 @@ class ChatPanel {
 				notifyTabsChanged();
 			}
 			ImGui.separator();
+			ImGui.text("Font size");
+			fontSizeRef.set(state.fontSize);
+			if (ImGui.sliderInt("##FontSize", fontSizeRef, MIN_FONT_SIZE, MAX_FONT_SIZE, "%d px")) {
+				state.fontSize = fontSizeRef.get();
+				if (onStateChanged != null)
+					onStateChanged(state);
+			}
+			ImGui.separator();
 			ImGui.text("Ignored players");
 			if (ignoredPlayers.length == 0)
 				ImGui.textDisabled("(none)");
@@ -509,16 +524,16 @@ class ChatPanel {
 		}
 	}
 
-	function drawSenderCell(entry:ChatMessage, row:Int):Void {
+	function drawSenderCell(entry:ChatMessage, row:Int, columnWidth:Float):Void {
 		var label = '[${entry.sender}]';
 		ImGui.textDisabled(label);
-		attachPlayerInteractions(label, senderColWidth, entry.sender, entry.senderId, 'SenderMenu##${row}');
+		attachPlayerInteractions(label, columnWidth, entry.sender, entry.senderId, 'SenderMenu##${row}');
 	}
 
-	function drawChannelCell(entry:ChatMessage, row:Int):Void {
+	function drawChannelCell(entry:ChatMessage, row:Int, columnWidth:Float):Void {
 		var label = '(${entry.channel})';
 		ImGui.textColored(channelColor(entry.channelColor), label);
-		attachPlayerInteractions(label, channelColWidth, entry.channel, entry.channelPlayerId, 'ChannelMenu##${row}');
+		attachPlayerInteractions(label, columnWidth, entry.channel, entry.channelPlayerId, 'ChannelMenu##${row}');
 	}
 
 	function drawContent(active:TabView):Void {
@@ -532,17 +547,19 @@ class ChatPanel {
 		ImGui.pushStyleColor(ImGuiCol.ChildBg, 0);
 		if (ImGui.beginChild("ChatHistory", ImGui.vec2(0, -ImGui.getFrameHeightWithSpacing()))) {
 			var atBottom = ImGui.getScrollY() >= ImGui.getScrollMaxY() - 1;
-			if (timeColWidth < 0) {
+			if (colWidthFontSize != state.fontSize) {
+				colWidthFontSize = state.fontSize;
 				timeColWidth = ImGui.calcTextSize("00:00").x;
 				senderColWidth = ImGui.calcTextSize("[XXXXXXXX]").x;
 				channelColWidth = senderColWidth;
 			}
 			ImGui.pushStyleVar(ImGuiStyleVar.CellPadding, ImGui.vec2(4, 1));
 			if (ImGui.beginTable("ChatHistoryTable", 4)) {
+				var messageColWidth = Math.max(ImGui.getContentRegionAvail().x - timeColWidth - channelColWidth - senderColWidth, 80.0);
 				ImGui.tableSetupColumn("time", ImGuiTableColumnFlags.WidthFixed, timeColWidth);
 				ImGui.tableSetupColumn("channel", ImGuiTableColumnFlags.WidthFixed, channelColWidth);
 				ImGui.tableSetupColumn("sender", ImGuiTableColumnFlags.WidthFixed, senderColWidth);
-				ImGui.tableSetupColumn("message", ImGuiTableColumnFlags.WidthStretch);
+				ImGui.tableSetupColumn("message", ImGuiTableColumnFlags.WidthFixed, messageColWidth);
 
 				for (i in 0...filtered.length) {
 					var entry = filtered[i];
@@ -550,21 +567,19 @@ class ChatPanel {
 					ImGui.tableNextColumn();
 					ImGui.text(entry.time);
 					ImGui.tableNextColumn();
-					drawChannelCell(entry, i);
+					drawChannelCell(entry, i, channelColWidth);
 					ImGui.tableNextColumn();
 					if (entry.sender != null) {
-						drawSenderCell(entry, i);
+						drawSenderCell(entry, i, senderColWidth);
 						ImGui.tableNextColumn();
 						ImGui.pushTextWrapPos(0.0);
 						ImGui.text(entry.text);
 						ImGui.popTextWrapPos();
 					} else {
-						var pos = ImGui.getCursorScreenPos();
-						var winPos = ImGui.getWindowPos();
 						var winSize = ImGui.getWindowSize();
-						ImGui.pushClipRect(pos, ImGui.vec2(winPos.x + winSize.x, pos.y + ImGui.getFrameHeightWithSpacing()), false);
+						ImGui.pushTextWrapPos(winSize.x);
 						ImGui.text(entry.text);
-						ImGui.popClipRect();
+						ImGui.popTextWrapPos();
 					}
 				}
 				ImGui.endTable();
@@ -681,6 +696,7 @@ class ChatPanel {
 			width: Std.int(size.x),
 			height: Std.int(size.y),
 			collapsed: ImGui.isWindowCollapsed(),
+			fontSize: state.fontSize,
 		};
 		if (next.x == state.x && next.y == state.y && next.width == state.width && next.height == state.height && next.collapsed == state.collapsed)
 			return;
