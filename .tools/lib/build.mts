@@ -13,6 +13,13 @@ function buildHaxeSide(modName: string): void {
   const modDir = stageModDir(modName)
   fs.mkdirSync(modDir, { recursive: true })
   fs.copyFileSync(output, path.join(modDir, path.basename(output)))
+
+  // Optional minGameVersion/maxGameVersion gate hlx-boot itself reads at load time (Boot.hx,
+  // via Native.modInfoAllowsVersion), so it has to land in the same hlx/mods/<name>/ folder
+  // as the .hl, not just the dist zip.
+  const modInfoPath = path.join(modRoot(modName), 'mod.info')
+  if (fs.existsSync(modInfoPath)) fs.copyFileSync(modInfoPath, path.join(modDir, 'mod.info'))
+
   console.log(`${modName}.hl -> built`)
 }
 

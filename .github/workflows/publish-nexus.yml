@@ -19,10 +19,37 @@ jobs:
   publish-nexus:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.mod }}
           path: dist
+
+      # Vortex's own compatibility check (vortex-farever-extension/src/mods/updates.ts) reads a
+      # "-min<Version>-max<Version>" suffix straight off the Nexus file's own version string -
+      # mod.info is the single source of truth for that range now (also read by hlx-boot itself
+      # at load time, Boot.hx), so fold it in here rather than asking mod authors to duplicate
+      # it by hand into the release tag. Absent mod.info, or one with neither key, this is a
+      # no-op - version passes through unchanged, same as before mod.info existed. Dash, not
+      # "+", because Nexus's own CreateModFileVersion API rejects anything outside
+      # ^[a-zA-Z0-9.-]+$ - a "+" 422s.
+      - name: Read mod.info version range
+        id: modinfo
+        run: |
+          suffix=""
+          if [ -f "${{ inputs.mod }}/mod.info" ]; then
+            min=$(grep -m1 '^minGameVersion=' "${{ inputs.mod }}/mod.info" | cut -d= -f2- | tr -d '[:space:]')
+            max=$(grep -m1 '^maxGameVersion=' "${{ inputs.mod }}/mod.info" | cut -d= -f2- | tr -d '[:space:]')
+            if [ -n "$min" ] && [ -n "$max" ]; then
+              suffix="-min${min}-max${max}"
+            elif [ -n "$min" ]; then
+              suffix="-min${min}"
+            elif [ -n "$max" ]; then
+              suffix="-max${max}"
+            fi
+          fi
+          echo "version=${{ inputs.version }}${suffix}" >> "$GITHUB_OUTPUT"
 
       # Secret NEXUS_CONFIG is a single JSON blob shared across every Nexus-published mod:
       # { "nexus_api_key": "...", "<mod>": { "nexus_domain": "...", "nexus_mod_id": 0, "nexus_file_group_id": "..." }, ... }
@@ -45,7 +72,7 @@ jobs:
           api_key: ${{ steps.nexus.outputs.api_key }}
           file_id: ${{ steps.nexus.outputs.file_id }}
           filename: dist/${{ inputs.mod }}.zip
-          version: ${{ inputs.version }}
+          version: ${{ steps.modinfo.outputs.version }}
           display_name: ${{ inputs.mod }}
           description: https://www.nexusmods.com/${{ steps.nexus.outputs.domain }}/mods/${{ steps.nexus.outputs.mod_id }}
           category: main
