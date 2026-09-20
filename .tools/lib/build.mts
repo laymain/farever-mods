@@ -1,7 +1,7 @@
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { modRoot, outputHl, stageModDir, stagePluginsDir, hashlinkDir, modType, ModType } from './paths.mts'
+import { modRoot, outputHl, stageModDir, stagePluginsDir, stageDriverDir, hashlinkDir, modType, ModType } from './paths.mts'
 
 function buildHaxeSide(modName: string): void {
   const output = outputHl(modName)
@@ -41,8 +41,24 @@ function buildNativePlugin(modName: string): void {
   execSync(`cmake --install "${nativeBuildDir}" --config Release --prefix "${pluginsDir}"`, { stdio: 'inherit' })
 }
 
+// A driver has no HashLink dependency at all by design (hlx-boot LoadLibrary/GetProcAddress's it
+// directly, never through HL's own native resolution - see hlx-core/hlx-boot/include/driver.h),
+// so unlike buildNativePlugin this never passes -DHASHLINK_DIR.
+function buildDriver(modName: string): void {
+  const nativeDir = path.join(modRoot(modName), 'native')
+  const nativeBuildDir = path.join(nativeDir, 'build')
+  const driverDir = stageDriverDir(modName)
+  fs.mkdirSync(driverDir, { recursive: true })
+
+  console.log(`Building ${modName}'s driver...`)
+  execSync(`cmake -S "${nativeDir}" -B "${nativeBuildDir}"`, { stdio: 'inherit' })
+  execSync(`cmake --build "${nativeBuildDir}" --config Release`, { stdio: 'inherit' })
+  execSync(`cmake --install "${nativeBuildDir}" --config Release --prefix "${driverDir}"`, { stdio: 'inherit' })
+}
+
 export async function runBuild(modName: string): Promise<void> {
   const type = modType(modName)
   if (type & ModType.MOD) buildHaxeSide(modName)
   if (type & ModType.PLUGIN) buildNativePlugin(modName)
+  if (type & ModType.DRIVER) buildDriver(modName)
 }

@@ -6,23 +6,40 @@ export const REPO_ROOT = path.resolve(import.meta.dirname, '../..')
 
 // A mod's kind is a bitfield inferred from what's actually in its folder, not declared anywhere -
 // MOD for a Haxe side (compile.hxml, compiled to .hl and staged under hlx/mods/<name>/), PLUGIN
-// for a native side (native/CMakeLists.txt, cmake-built and staged under hlx/plugins/<name>/). A
-// mod can be either or both: shader-cache is MOD|PLUGIN (Haxe hook + native .hdll),
-// shader-persistent-cache is PLUGIN only (no Haxe side at all), everything else is MOD only.
+// for a native side (native/CMakeLists.txt, cmake-built and staged under hlx/plugins/<name>/),
+// DRIVER for a native side that instead implements one of hlx-boot's fixed driver contracts
+// (native/CMakeLists.txt + a root driver.json naming which one, cmake-built and staged under
+// hlx/drivers/<kind>/ - see hlx-core/hlx-boot/include/driver.h). A mod can be either or both of
+// MOD/PLUGIN: shader-cache is MOD|PLUGIN (Haxe hook + native .hdll), shader-persistent-cache is
+// PLUGIN only (no Haxe side at all), everything else is MOD only. DRIVER is mutually exclusive
+// with PLUGIN - driver.json's presence means this native/ build is a driver, not a plugin, even
+// though both anchor on the same native/CMakeLists.txt marker.
 export const ModType = {
   MOD: 1 << 0,
   PLUGIN: 1 << 1,
+  DRIVER: 1 << 2,
 } as const
+
+interface DriverManifest {
+  kind: string
+}
+
+export function driverKind(modName: string): string {
+  const manifestPath = path.join(REPO_ROOT, modName, 'driver.json')
+  return (JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as DriverManifest).kind
+}
 
 export function modType(modName: string): number {
   const root = path.join(REPO_ROOT, modName)
   let type = 0
   if (fs.existsSync(path.join(root, 'compile.hxml'))) type |= ModType.MOD
-  if (fs.existsSync(path.join(root, 'native', 'CMakeLists.txt'))) type |= ModType.PLUGIN
+  const hasNative = fs.existsSync(path.join(root, 'native', 'CMakeLists.txt'))
+  if (hasNative && fs.existsSync(path.join(root, 'driver.json'))) type |= ModType.DRIVER
+  else if (hasNative) type |= ModType.PLUGIN
   return type
 }
 
-// A "mod" is any top-level folder with a non-zero modType() - one of its two markers
+// A "mod" is any top-level folder with a non-zero modType() - one of its markers
 // (compile.hxml, native/CMakeLists.txt) is something every mod has and nothing else at repo root does.
 export function discoverMods(): string[] {
   return fs
@@ -65,6 +82,10 @@ export function stageModDir(modName: string): string {
 
 export function stagePluginsDir(modName: string): string {
   return path.join(stageDir(modName), 'plugins', modName)
+}
+
+export function stageDriverDir(modName: string): string {
+  return path.join(stageDir(modName), 'drivers', driverKind(modName))
 }
 
 // This project is standalone from hlx-core's own build/deploy pipeline, but

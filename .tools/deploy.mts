@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { runBuild } from './lib/build.mts'
-import { gameDir, discoverMods, stageModDir, stagePluginsDir } from './lib/paths.mts'
+import { gameDir, discoverMods, stageModDir, stagePluginsDir, stageDriverDir, modType, ModType } from './lib/paths.mts'
 
 // `npm run deploy` -> all mods, `npm run deploy -- <mod-name>` -> just that one.
 const requested = process.argv[2]
@@ -22,6 +22,7 @@ if (!fs.existsSync(dest)) {
 // easy to recover from and there's no reason to hard-fail over ordering.
 const modsDir = path.join(dest, 'hlx', 'mods')
 const pluginsDir = path.join(dest, 'hlx', 'plugins')
+const driversDir = path.join(dest, 'hlx', 'drivers')
 
 for (const mod of mods) {
   await runBuild(mod)
@@ -48,6 +49,20 @@ for (const mod of mods) {
     for (const file of fs.readdirSync(stagedPlugins)) {
       const target = path.join(modPluginsDest, file)
       fs.cpSync(path.join(stagedPlugins, file), target, { recursive: true })
+      console.log(`${file} -> ${target}`)
+    }
+  }
+
+  // A driver's staged folder is already named after its kind (stageDriverDir), unlike
+  // mods/plugins which nest under the mod's own name - hlx-boot looks it up by kind
+  // (hlx/drivers/<kind>/<kind>.dll), not by which farever-mods package built it.
+  if (modType(mod) & ModType.DRIVER) {
+    const stagedDriver = stageDriverDir(mod)
+    const driverDest = path.join(driversDir, path.basename(stagedDriver))
+    fs.mkdirSync(driverDest, { recursive: true })
+    for (const file of fs.readdirSync(stagedDriver)) {
+      const target = path.join(driverDest, file)
+      fs.cpSync(path.join(stagedDriver, file), target, { recursive: true })
       console.log(`${file} -> ${target}`)
     }
   }

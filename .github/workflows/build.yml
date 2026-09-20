@@ -22,7 +22,8 @@ jobs:
       - id: list
         run: |
           # A mod is any top-level folder with a compile.hxml (Haxe side) and/or a
-          # native/CMakeLists.txt (native plugin side) - mirrors .tools/lib/paths.mts's modType().
+          # native/CMakeLists.txt (native plugin OR driver side, see driver.json) -
+          # mirrors .tools/lib/paths.mts's modType(). Either way it needs windows-latest.
           include=$(for d in */; do
             mod="${d%/}"
             if [ -f "$mod/compile.hxml" ] || [ -f "$mod/native/CMakeLists.txt" ]; then
