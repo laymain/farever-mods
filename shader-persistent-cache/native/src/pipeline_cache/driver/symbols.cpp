@@ -22,7 +22,6 @@ Fn_command_allocator_create GReal_command_allocator_create = NULL;
 Fn_command_allocator_reset GReal_command_allocator_reset = NULL;
 Fn_command_list_create GReal_command_list_create = NULL;
 Fn_command_list_close GReal_command_list_close = NULL;
-Fn_command_list_execute GReal_command_list_execute = NULL;
 Fn_command_list_clear_render_target_view GReal_command_list_clear_render_target_view = NULL;
 Fn_command_list_clear_depth_stencil_view GReal_command_list_clear_depth_stencil_view = NULL;
 Fn_command_list_reset GReal_command_list_reset = NULL;
@@ -89,22 +88,20 @@ Fn_get_copyable_footprints GReal_get_copyable_footprints = NULL;
 Fn_create_sampler GReal_create_sampler = NULL;
 Fn_create_committed_resource GReal_create_committed_resource = NULL;
 Fn_create_command_signature GReal_create_command_signature = NULL;
+Fn_create_heap GReal_create_heap = NULL;
+Fn_create_placed_resource GReal_create_placed_resource = NULL;
 Fn_resize GReal_resize = NULL;
 Fn_update_sub_resource GReal_update_sub_resource = NULL;
-Fn_signal GReal_signal = NULL;
-Fn_wait GReal_wait = NULL;
-Fn_present GReal_present = NULL;
-Fn_suspend GReal_suspend = NULL;
-Fn_resume GReal_resume = NULL;
 Fn_get_constant GReal_get_constant = NULL;
 Fn_copy_descriptors_simple GReal_copy_descriptors_simple = NULL;
 Fn_check_feature_support GReal_check_feature_support = NULL;
 Fn_get_device_name GReal_get_device_name = NULL;
 Fn_list_devices GReal_list_devices = NULL;
-Fn_get_timestamp_frequency GReal_get_timestamp_frequency = NULL;
 Fn_get_driver_version GReal_get_driver_version = NULL;
 Fn_query_video_memory_info GReal_query_video_memory_info = NULL;
 Fn_set_gpu_crash_handler GReal_set_gpu_crash_handler = NULL;
+Fn_set_swap_chain GReal_set_swap_chain = NULL;
+Fn_get_resource_allocation_info GReal_get_resource_allocation_info = NULL;
 Fn_get_factory GReal_get_factory = NULL;
 Fn_set_factory GReal_set_factory = NULL;
 Fn_set_device GReal_set_device = NULL;
@@ -135,7 +132,6 @@ static NativeForward GForwardTable[] = {
 	{ "command_allocator_reset", (void **)&GReal_command_allocator_reset },
 	{ "command_list_create", (void **)&GReal_command_list_create },
 	{ "command_list_close", (void **)&GReal_command_list_close },
-	{ "command_list_execute", (void **)&GReal_command_list_execute },
 	{ "command_list_clear_render_target_view", (void **)&GReal_command_list_clear_render_target_view },
 	{ "command_list_clear_depth_stencil_view", (void **)&GReal_command_list_clear_depth_stencil_view },
 	{ "command_list_reset", (void **)&GReal_command_list_reset },
@@ -202,25 +198,23 @@ static NativeForward GForwardTable[] = {
 	{ "create_sampler", (void **)&GReal_create_sampler },
 	{ "create_committed_resource", (void **)&GReal_create_committed_resource },
 	{ "create_command_signature", (void **)&GReal_create_command_signature },
+	{ "create_heap", (void **)&GReal_create_heap },
+	{ "create_placed_resource", (void **)&GReal_create_placed_resource },
 	{ "resize", (void **)&GReal_resize },
 	{ "update_sub_resource", (void **)&GReal_update_sub_resource },
-	{ "signal", (void **)&GReal_signal },
-	{ "wait", (void **)&GReal_wait },
-	{ "present", (void **)&GReal_present },
-	{ "suspend", (void **)&GReal_suspend },
-	{ "resume", (void **)&GReal_resume },
 	{ "get_constant", (void **)&GReal_get_constant },
 	{ "copy_descriptors_simple", (void **)&GReal_copy_descriptors_simple },
 	{ "check_feature_support", (void **)&GReal_check_feature_support },
 	{ "get_device_name", (void **)&GReal_get_device_name },
 	{ "list_devices", (void **)&GReal_list_devices },
-	{ "get_timestamp_frequency", (void **)&GReal_get_timestamp_frequency },
 	{ "get_driver_version", (void **)&GReal_get_driver_version },
 	{ "query_video_memory_info", (void **)&GReal_query_video_memory_info },
 	{ "set_gpu_crash_handler", (void **)&GReal_set_gpu_crash_handler },
 	{ "get_factory", (void **)&GReal_get_factory },
 	{ "set_factory", (void **)&GReal_set_factory },
 	{ "set_device", (void **)&GReal_set_device },
+	{ "set_swap_chain", (void **)&GReal_set_swap_chain },
+	{ "get_resource_allocation_info", (void **)&GReal_get_resource_allocation_info },
 	{ "command_queue_get_timestamp_frequency", (void **)&GReal_command_queue_get_timestamp_frequency },
 	{ "command_queue_present", (void **)&GReal_command_queue_present },
 	{ "command_queue_resume", (void **)&GReal_command_queue_resume },
@@ -230,7 +224,7 @@ static NativeForward GForwardTable[] = {
 static HMODULE GImplModule = NULL;
 
 // GetProcAddress's real return type (FARPROC) and each GReal_<name> global have different
-// C++ types by construction (one per real native's own signature) - this resolves all 106
+// C++ types by construction (one per real native's own signature) - this resolves all 103
 // through one generic loop via the same void** trick shadercache.cpp and ordinary Win32
 // GetProcAddress-table code both already rely on (function pointers and data pointers share
 // representation on this platform/ABI; MSVC/x64 only, matching this whole project's own

@@ -2,10 +2,10 @@
 
 #include "../types.h"
 
-// One typedef + one resolved function pointer per real "dx12" native (106 total, including
+// One typedef + one resolved function pointer per real "dx12" native (103 total, including
 // get_device - resolved the same way as everything else even though its own stub adds
 // device-capture logic on top of the plain forward). Populated once, in LoadDx12Impl, right
-// after dx12_original.hdll itself loads. Shared by forwarding.cpp (101 mechanical stubs) and
+// after dx12_original.hdll itself loads. Shared by forwarding.cpp (98 mechanical stubs) and
 // intercepts.cpp (the 5 stubs with real cache logic).
 
 typedef dx_device (*Fn_get_device)(void);
@@ -24,7 +24,6 @@ typedef dx_resource (*Fn_command_allocator_create)(int);
 typedef void (*Fn_command_allocator_reset)(dx_resource);
 typedef dx_resource (*Fn_command_list_create)(int, dx_resource, dx_resource);
 typedef void (*Fn_command_list_close)(dx_resource);
-typedef void (*Fn_command_list_execute)(dx_resource);
 typedef void (*Fn_command_list_clear_render_target_view)(dx_resource, int64, void *);
 typedef void (*Fn_command_list_clear_depth_stencil_view)(dx_resource, int64, int, float, int);
 typedef void (*Fn_command_list_reset)(dx_resource, dx_resource, dx_resource);
@@ -91,24 +90,22 @@ typedef void (*Fn_get_copyable_footprints)(void *, int, int, int64, void *, vbyt
 typedef void (*Fn_create_sampler)(void *, int64);
 typedef dx_resource (*Fn_create_committed_resource)(void *, int, void *, int, void *);
 typedef dx_resource (*Fn_create_command_signature)(void *, dx_resource);
+typedef dx_resource (*Fn_create_heap)(void *);
+typedef dx_resource (*Fn_create_placed_resource)(dx_resource, int64, void *, int, void *);
 typedef void (*Fn_resize)(int, int, int, int);
 typedef bool (*Fn_update_sub_resource)(dx_resource, dx_resource, dx_resource, int64, int, int, void *);
-typedef void (*Fn_signal)(dx_resource, int64);
-typedef void (*Fn_wait)(dx_resource, int64);
-typedef void (*Fn_present)(bool);
-typedef void (*Fn_suspend)(void);
-typedef void (*Fn_resume)(void);
 typedef int (*Fn_get_constant)(int);
 typedef void (*Fn_copy_descriptors_simple)(int, int64, int64, int);
 typedef void (*Fn_check_feature_support)(int, vbyte *, int);
 typedef vbyte * (*Fn_get_device_name)(void);
 typedef varray * (*Fn_list_devices)(void);
-typedef int64 (*Fn_get_timestamp_frequency)(void);
 typedef int64 (*Fn_get_driver_version)(void);
 typedef void (*Fn_query_video_memory_info)(int, void *);
 // Added by a Farever game update (fn#31078) - takes the game's GPU-crash callback closure as its
 // only argument and just forwards it through; this proxy never calls into it itself.
 typedef void (*Fn_set_gpu_crash_handler)(vclosure *);
+typedef void (*Fn_set_swap_chain)(dx_swapchain);
+typedef void (*Fn_get_resource_allocation_info)(void *, void *);
 
 typedef dx_factory (*Fn_get_factory)(void);
 typedef void (*Fn_set_factory)(dx_factory);
@@ -134,7 +131,6 @@ extern Fn_command_allocator_create GReal_command_allocator_create;
 extern Fn_command_allocator_reset GReal_command_allocator_reset;
 extern Fn_command_list_create GReal_command_list_create;
 extern Fn_command_list_close GReal_command_list_close;
-extern Fn_command_list_execute GReal_command_list_execute;
 extern Fn_command_list_clear_render_target_view GReal_command_list_clear_render_target_view;
 extern Fn_command_list_clear_depth_stencil_view GReal_command_list_clear_depth_stencil_view;
 extern Fn_command_list_reset GReal_command_list_reset;
@@ -201,22 +197,20 @@ extern Fn_get_copyable_footprints GReal_get_copyable_footprints;
 extern Fn_create_sampler GReal_create_sampler;
 extern Fn_create_committed_resource GReal_create_committed_resource;
 extern Fn_create_command_signature GReal_create_command_signature;
+extern Fn_create_heap GReal_create_heap;
+extern Fn_create_placed_resource GReal_create_placed_resource;
 extern Fn_resize GReal_resize;
 extern Fn_update_sub_resource GReal_update_sub_resource;
-extern Fn_signal GReal_signal;
-extern Fn_wait GReal_wait;
-extern Fn_present GReal_present;
-extern Fn_suspend GReal_suspend;
-extern Fn_resume GReal_resume;
 extern Fn_get_constant GReal_get_constant;
 extern Fn_copy_descriptors_simple GReal_copy_descriptors_simple;
 extern Fn_check_feature_support GReal_check_feature_support;
 extern Fn_get_device_name GReal_get_device_name;
 extern Fn_list_devices GReal_list_devices;
-extern Fn_get_timestamp_frequency GReal_get_timestamp_frequency;
 extern Fn_get_driver_version GReal_get_driver_version;
 extern Fn_query_video_memory_info GReal_query_video_memory_info;
 extern Fn_set_gpu_crash_handler GReal_set_gpu_crash_handler;
+extern Fn_set_swap_chain GReal_set_swap_chain;
+extern Fn_get_resource_allocation_info GReal_get_resource_allocation_info;
 extern Fn_get_factory GReal_get_factory;
 extern Fn_set_factory GReal_set_factory;
 extern Fn_set_device GReal_set_device;
@@ -225,6 +219,6 @@ extern Fn_command_queue_present GReal_command_queue_present;
 extern Fn_command_queue_resume GReal_command_queue_resume;
 extern Fn_command_queue_suspend GReal_command_queue_suspend;
 
-// Loads dx12_original.hdll (via GetDx12ImplPath) and resolves all 106 GReal_<name> pointers above
+// Loads dx12_original.hdll (via GetDx12ImplPath) and resolves all 103 GReal_<name> pointers above
 // from its export table.
 void LoadDx12Impl(const char *selfDir);

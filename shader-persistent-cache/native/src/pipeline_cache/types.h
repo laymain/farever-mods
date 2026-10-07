@@ -18,6 +18,7 @@ typedef void *dx_event;
 typedef void *dx_window;
 typedef void *dx_driver;
 typedef void *dx_factory;
+typedef void *dx_swapchain;
 
 #define _RESOURCE _ABSTRACT(dx_resource)
 #define _DEVICE _ABSTRACT(dx_device)
@@ -28,3 +29,4 @@ typedef void *dx_factory;
 #define _DRIVER _ABSTRACT(dx_driver)
 #define _CARRAY _ABSTRACT(hl_carray)
 #define _FACTORY _ABSTRACT(dx_factory)
+#define _SWAPCHAIN _ABSTRACT(dx_swapchain)

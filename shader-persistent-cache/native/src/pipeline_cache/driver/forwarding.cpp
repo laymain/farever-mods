@@ -105,12 +105,6 @@ HL_PRIM void HL_NAME(command_list_close)(dx_resource a0) {
 
 DEFINE_PRIM(_VOID, command_list_close, _RESOURCE);
 
-HL_PRIM void HL_NAME(command_list_execute)(dx_resource a0) {
-	if (GReal_command_list_execute) GReal_command_list_execute(a0);
-}
-
-DEFINE_PRIM(_VOID, command_list_execute, _RESOURCE);
-
 HL_PRIM void HL_NAME(command_list_clear_render_target_view)(dx_resource a0, int64 a1, void * a2) {
 	if (GReal_command_list_clear_render_target_view) GReal_command_list_clear_render_target_view(a0, a1, a2);
 }
@@ -506,6 +500,32 @@ HL_PRIM dx_resource HL_NAME(create_command_signature)(void * a0, dx_resource a1)
 
 DEFINE_PRIM(_RESOURCE, create_command_signature, _STRUCT _RESOURCE);
 
+HL_PRIM dx_resource HL_NAME(create_heap)(void * a0) {
+	if (GReal_create_heap) return GReal_create_heap(a0);
+	return NULL;
+}
+
+DEFINE_PRIM(_RESOURCE, create_heap, _STRUCT);
+
+HL_PRIM dx_resource HL_NAME(create_placed_resource)(dx_resource a0, int64 a1, void * a2, int a3, void * a4) {
+	if (GReal_create_placed_resource) return GReal_create_placed_resource(a0, a1, a2, a3, a4);
+	return NULL;
+}
+
+DEFINE_PRIM(_RESOURCE, create_placed_resource, _RESOURCE _I64 _STRUCT _I32 _STRUCT);
+
+HL_PRIM void HL_NAME(set_swap_chain)(dx_swapchain a0) {
+	if (GReal_set_swap_chain) GReal_set_swap_chain(a0);
+}
+
+DEFINE_PRIM(_VOID, set_swap_chain, _SWAPCHAIN);
+
+HL_PRIM void HL_NAME(get_resource_allocation_info)(void * a0, void * a1) {
+	if (GReal_get_resource_allocation_info) GReal_get_resource_allocation_info(a0, a1);
+}
+
+DEFINE_PRIM(_VOID, get_resource_allocation_info, _STRUCT _STRUCT);
+
 HL_PRIM void HL_NAME(resize)(int a0, int a1, int a2, int a3) {
 	if (GReal_resize) GReal_resize(a0, a1, a2, a3);
 }
@@ -531,36 +551,6 @@ HL_PRIM bool HL_NAME(update_sub_resource)(dx_resource a0, dx_resource a1, dx_res
 }
 
 DEFINE_PRIM(_BOOL, update_sub_resource, _RESOURCE _RESOURCE _RESOURCE _I64 _I32 _I32 _STRUCT);
-
-HL_PRIM void HL_NAME(signal)(dx_resource a0, int64 a1) {
-	if (GReal_signal) GReal_signal(a0, a1);
-}
-
-DEFINE_PRIM(_VOID, signal, _RESOURCE _I64);
-
-HL_PRIM void HL_NAME(wait)(dx_resource a0, int64 a1) {
-	if (GReal_wait) GReal_wait(a0, a1);
-}
-
-DEFINE_PRIM(_VOID, wait, _RESOURCE _I64);
-
-HL_PRIM void HL_NAME(present)(bool a0) {
-	if (GReal_present) GReal_present(a0);
-}
-
-DEFINE_PRIM(_VOID, present, _BOOL);
-
-HL_PRIM void HL_NAME(suspend)() {
-	if (GReal_suspend) GReal_suspend();
-}
-
-DEFINE_PRIM(_VOID, suspend, _NO_ARG);
-
-HL_PRIM void HL_NAME(resume)() {
-	if (GReal_resume) GReal_resume();
-}
-
-DEFINE_PRIM(_VOID, resume, _NO_ARG);
 
 HL_PRIM int HL_NAME(get_constant)(int a0) {
 	if (GReal_get_constant) return GReal_get_constant(a0);
@@ -594,13 +584,6 @@ HL_PRIM varray * HL_NAME(list_devices)() {
 }
 
 DEFINE_PRIM(_ARR, list_devices, _NO_ARG);
-
-HL_PRIM int64 HL_NAME(get_timestamp_frequency)() {
-	if (GReal_get_timestamp_frequency) return GReal_get_timestamp_frequency();
-	return 0;
-}
-
-DEFINE_PRIM(_I64, get_timestamp_frequency, _NO_ARG);
 
 HL_PRIM int64 HL_NAME(get_driver_version)() {
 	if (GReal_get_driver_version) return GReal_get_driver_version();
