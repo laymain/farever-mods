@@ -39,6 +39,11 @@ function buildNativePlugin(modName: string): void {
   execSync(`cmake -S "${nativeDir}" -B "${nativeBuildDir}" -DHASHLINK_DIR="${hashlinkDir()}"`, { stdio: 'inherit' })
   execSync(`cmake --build "${nativeBuildDir}" --config Release`, { stdio: 'inherit' })
   execSync(`cmake --install "${nativeBuildDir}" --config Release --prefix "${pluginsDir}"`, { stdio: 'inherit' })
+
+  // mod.info contains minGameVersion/maxGameVersion for plugin compatibility gating.
+  // Copy it into the staged plugins dir so it lands in hlx/plugins/<name>/mod.info in the dist zip.
+  const modInfoPath = path.join(modRoot(modName), 'mod.info')
+  if (fs.existsSync(modInfoPath)) fs.copyFileSync(modInfoPath, path.join(pluginsDir, 'mod.info'))
 }
 
 // A driver has no HashLink dependency at all by design (hlx-boot LoadLibrary/GetProcAddress's it
